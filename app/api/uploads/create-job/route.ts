@@ -131,9 +131,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown server error';
     console.error('[create-job] Unhandled error:', msg);
-    if (msg.includes('SUPABASE_SERVICE_ROLE_KEY is not set')) {
+    if (msg.includes('DATABASE_URL is not set')) {
       return NextResponse.json(
-        { error: 'Server misconfigured: SUPABASE_SERVICE_ROLE_KEY missing in .env.local' },
+        { error: 'Server misconfigured: DATABASE_URL missing in .env.local' },
         { status: 500 },
       );
     }
