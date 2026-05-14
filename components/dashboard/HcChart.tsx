@@ -144,7 +144,7 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
 
   // ── Card surface colors ───────────────────────────────────────────────────
   const surface  = dark ? '#252220' : '#FAF7F2';
-  const border   = dark ? '#302D2A' : '#D9C8A8';
+  const border   = dark ? '#3A3530' : '#B9A88A';
   const teal     = dark ? '#14A89E' : '#0E7470';
   const titleCol = dark ? '#EDE8E0' : '#1A1714';
   const footMut  = dark ? '#6B6560' : '#8A857E';

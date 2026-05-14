@@ -371,6 +371,10 @@ function SectionHead({ label, dark }: { label: string; dark: boolean }) {
 export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboardJson; chainEntries?: ChainEntry[] }) {
   const isJo = data.meta.schema === 'jo-v1';
   const { t } = useI18n();
+  const moduleLabel = isJo ? 'JO' : 'IM';
+  const contextTitle = data.meta.hotel_name
+    ? `${data.meta.hotel_name} · ${data.meta.hotel_code ?? ''} · ${moduleLabel}${data.meta.country_code ? ` (${data.meta.country_code})` : ''}`
+    : data.meta.source_name;
   const [dark,     setDark]     = useState(false);
   const [dateFrom, setDateFrom] = useState(data.meta.date_range.min ?? '');
   const [dateTo,   setDateTo]   = useState(data.meta.date_range.max ?? '');
@@ -540,11 +544,11 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         style={{ background: toolbarBg, borderBottom: `1px solid ${toolbarBd}` }}
       >
         {/* Meta */}
-        <div className="flex-1 min-w-0">
-          <p className="font-serif font-semibold truncate" style={{ fontSize: '0.8rem', color: metaTitle }}>
-            {data.meta.source_name}
-          </p>
-          <p className="font-mono mt-0.5" style={{ fontSize: '0.6rem', letterSpacing: '0.05em', color: metaSub }}>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-serif font-semibold truncate leading-snug" style={{ fontSize: '1.125rem', color: metaTitle }}>
+              {contextTitle}
+            </h3>
+            <p className="font-mono mt-0.5" style={{ fontSize: '0.6rem', letterSpacing: '0.05em', color: metaSub }}>
             {data.meta.total_records.toLocaleString()} {t('dashboard_ui.records_suffix', 'records')}
             {' · '}{t('dashboard_ui.generated_prefix', 'Generated')} {new Date(data.meta.generated_at).toLocaleString()}
             {hasChain && ` · ${chainEntries.length} hotels in chain`}
@@ -611,7 +615,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         </div>
       </div>
 
-      <div className="px-6 py-5 space-y-7 max-w-screen-2xl mx-auto">
+      <div className="px-6 pt-1 pb-5 space-y-7 max-w-screen-2xl mx-auto">
 
         {/* ── Print-only title (hidden on screen) ───────────────────────────── */}
         <div className="print-title hidden" style={{ borderBottom: '2px solid #0E7470', paddingBottom: '6mm' }}>
@@ -627,8 +631,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
 
         {/* ── KPIs ──────────────────────────────────────────────────────────── */}
         <section className="kpi-print-section">
-          <SectionHead label={t('dashboard_ui.section_kpi', 'Key Performance Indicators')} dark={dark} />
-          <div className="kpi-grid mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <div className="kpi-grid mt-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {localizedKpis.map(k => <KpiCard key={k.id} kpi={k} dark={dark} />)}
           </div>
           {filtered && (

@@ -49,7 +49,7 @@ export function KpiCard({ kpi, dark }: KpiCardProps) {
 
   const na      = !kpi.available;
   const surface = dark ? '#252220' : '#FAF7F2';
-  const border  = dark ? '#302D2A' : '#D9C8A8';
+  const border  = dark ? '#3A3530' : '#B9A88A';
   const label   = dark ? '#8A857E' : '#6B6560';
   const value   = na ? (dark ? '#4E4A46' : '#C4B090') : (dark ? '#EDE8E0' : '#1A1714');
   const sub     = dark ? '#6B6560' : '#8A857E';
@@ -122,12 +122,6 @@ export function KpiCard({ kpi, dark }: KpiCardProps) {
           )}
         </div>
 
-        {/* Accent rule under value */}
-        <div
-          className="mt-2.5"
-          style={{ height: '1px', background: `${borderColor}22` }}
-          aria-hidden
-        />
       </div>
 
       {/* Info tooltip */}

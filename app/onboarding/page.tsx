@@ -608,7 +608,8 @@ export default function OnboardingPage() {
                       {t('onboarding.status_success', 'Upload complete')}
                     </p>
                     <p className="font-sans text-[11px] mt-0.5" style={{ color: '#4A6E6B' }}>
-                      {parsed.hotelName} ({parsed.hotelCode}) · {parsed.module} · {parsed.dataRange}
+                      {parsed.hotelName} · {parsed.hotelCode} · {parsed.module.toUpperCase()}
+                      {parsed.countryCode ? ` (${parsed.countryCode})` : ''}
                     </p>
                   </div>
                 </div>
