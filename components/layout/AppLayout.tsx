@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { Menu } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import { I18nProvider, useI18n } from './I18nProvider';
+import { useI18n } from './I18nProvider';
 
 interface Breadcrumb {
   label: string;
@@ -18,13 +18,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, breadcrumbs, headerRight }: AppLayoutProps) {
-  return (
-    <I18nProvider>
-      <AppLayoutInner breadcrumbs={breadcrumbs} headerRight={headerRight}>
-        {children}
-      </AppLayoutInner>
-    </I18nProvider>
-  );
+  return <AppLayoutInner breadcrumbs={breadcrumbs} headerRight={headerRight}>{children}</AppLayoutInner>;
 }
 
 function AppLayoutInner({ children, breadcrumbs, headerRight }: AppLayoutProps) {
