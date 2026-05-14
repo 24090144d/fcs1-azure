@@ -16,6 +16,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.vercel
 
 # debug
 npm-debug.log*
@@ -36,5 +37,6 @@ Thumbs.db
 .vercel
 .next-3010/
 dev-3010.log
+devserver*.log
 data/
 .env.local

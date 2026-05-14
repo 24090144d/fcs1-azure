@@ -106,6 +106,7 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
   const currentModule = searchParams.get('module') ?? 'im';
   const [chains, setChains] = useState<NavChain[]>([]);
   const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set());
+  const [resettingDb, setResettingDb] = useState(false);
 
   // Sync dark state from <html class="dark"> (toggled by DashboardClient)
   const [dark, setDark] = useState(false);
@@ -139,6 +140,30 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
   }, [pathname, currentHotel, currentModule]);
 
   const t = tokens(dark);
+
+  async function handleResetDatabase() {
+    if (resettingDb) return;
+    const confirmed = window.confirm(
+      'Reset Database?\n\nYes: truncate all data and keep schema.\nNo: cancel.'
+    );
+    if (!confirmed) return;
+
+    setResettingDb(true);
+    try {
+      const res = await fetch('/api/admin/reset-database', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(`Reset failed: ${(body as { error?: string }).error ?? res.statusText}`);
+        return;
+      }
+      alert('Database reset completed.');
+      window.location.href = '/onboarding';
+    } catch (error) {
+      alert(`Reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setResettingDb(false);
+    }
+  }
 
   return (
     <>
@@ -199,7 +224,7 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
                 className="font-mono"
                 style={{ fontSize: '0.75rem', fontWeight: 400, color: t.teal }}
               >
-                &nbsp;JO Dashbard
+                &nbsp;Dashboard
               </span>
             </span>
           </div>
@@ -311,7 +336,11 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
         </div>
 
         {/* ── User strip ─────────────────────────────────────────────────── */}
-        <div
+        <button
+          type="button"
+          onClick={handleResetDatabase}
+          disabled={resettingDb}
+          aria-label="Reset Database"
           className="px-4 py-3 shrink-0"
           style={{ borderTop: `1px solid ${t.border}`, background: t.band }}
         >
@@ -355,10 +384,10 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
                 padding:     '1px 5px',
               }}
             >
-              {APP_VERSION}
+              {resettingDb ? 'Resetting…' : APP_VERSION}
             </span>
           </div>
-        </div>
+        </button>
       </aside>
     </>
   );

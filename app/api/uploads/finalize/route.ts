@@ -1471,7 +1471,16 @@ export async function POST(req: NextRequest) {
         .from(recordTable).insert(payload.slice(i, i + INSERT_BATCH)) as unknown as SbResult<null>;
       if (ie) {
         console.error(`[finalize] insert error (${recordTable}):`, ie.message);
-        return NextResponse.json({ error: 'Failed to insert records' }, { status: 500 });
+        const msg = String(ie.message ?? '');
+        const isSizeLimit = /project size limit|exceeded/i.test(msg);
+        return NextResponse.json(
+          {
+            error: isSizeLimit
+              ? `Database storage limit reached. Please free space in Neon, then retry finalize/upload. Detail: ${msg}`
+              : `Failed to insert records: ${msg}`,
+          },
+          { status: 500 },
+        );
       }
       totalInserted += Math.min(INSERT_BATCH, payload.length - i);
     }
@@ -1501,6 +1510,9 @@ export async function POST(req: NextRequest) {
     console.error('[finalize] dashboard upsert error:', dashError.message);
     return NextResponse.json({ error: 'Failed to upsert dashboard JSON' }, { status: 500 });
   }
+
+  // Reclaim disk: staging rows are temporary and no longer needed after finalize succeeds.
+  await supabase.from(stagingTable).delete().eq('upload_job_id', upload_job_id);
 
   await supabase.from('upload_jobs').update({ status: 'completed', completed_at: now, updated_at: now }).eq('id', upload_job_id);
 

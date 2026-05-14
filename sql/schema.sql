@@ -1,6 +1,6 @@
--- Incident Analytics Dashboard — Supabase Schema
--- Full schema reflecting all tables as of 2026-05-12.
--- Run once on a fresh project; for existing projects use the migration scripts.
+-- Incident Analytics Dashboard — PostgreSQL Schema (Neon/Azure compatible)
+-- Full schema baseline for fresh environments (e.g. Azure PostgreSQL Flexible Server).
+-- Updated for staging-table truncation workflow (source_row_id is nullable, no FK to staging).
 
 -- ── Extensions ────────────────────────────────────────────────────────────────
 create extension if not exists "pgcrypto";
@@ -12,6 +12,17 @@ create type public.module_code       as enum ('im','jo');
 -- ═════════════════════════════════════════════════════════════════════════════
 -- Upload jobs & files
 -- ═════════════════════════════════════════════════════════════════════════════
+
+create table if not exists public.organizations (
+  id                uuid        primary key default gen_random_uuid(),
+  organization_code text        not null unique,
+  organization_name text        not null,
+  timezone          text        not null default 'UTC',
+  metadata          jsonb       not null default '{}'::jsonb,
+  created_by        uuid,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
 
 create table if not exists public.upload_jobs (
   id              uuid                    primary key default gen_random_uuid(),
@@ -70,7 +81,7 @@ create table if not exists public.im_records (
   organization_id  uuid        not null,
   upload_job_id    uuid        not null references public.upload_jobs(id) on delete cascade,
   uploaded_file_id uuid        references public.uploaded_files(id),
-  source_row_id    bigint      references public.im_staging_rows(id),
+  source_row_id    bigint,
 
   -- ── Incident identity ──────────────────────────────────────────────────────
   incident_case    text,                   -- e.g. IC-00539-001
@@ -169,7 +180,7 @@ create table if not exists public.jo_records (
   organization_id  uuid        not null,
   upload_job_id    uuid        not null references public.upload_jobs(id) on delete cascade,
   uploaded_file_id uuid        references public.uploaded_files(id),
-  source_row_id    bigint      references public.jo_staging_rows(id),
+  source_row_id    bigint,
 
   department_name      text,
   created_datetime     timestamptz,
@@ -227,9 +238,11 @@ create table if not exists public.jo_dashboard_json (
 create index if not exists upload_jobs_org_idx        on public.upload_jobs (organization_id);
 create index if not exists upload_jobs_status_idx     on public.upload_jobs (status);
 create index if not exists upload_jobs_module_idx     on public.upload_jobs (module_code);
+create index if not exists organizations_code_idx      on public.organizations (organization_code);
 
 -- uploaded_files
 create index if not exists uploaded_files_job_idx     on public.uploaded_files (upload_job_id);
+create index if not exists uploaded_files_hash_lookup_idx on public.uploaded_files (organization_id, module_code, file_hash);
 
 -- im_records — analytics columns
 create index if not exists im_records_job_idx             on public.im_records (upload_job_id);
@@ -247,6 +260,12 @@ create index if not exists im_records_incident_category_idx on public.im_records
 create index if not exists jo_records_job_idx             on public.jo_records (upload_job_id);
 create index if not exists jo_records_status_idx          on public.jo_records (job_status);
 create index if not exists jo_records_created_datetime_idx on public.jo_records (created_datetime);
+
+-- staging lookup/per-job cleanup
+create index if not exists im_staging_rows_job_idx        on public.im_staging_rows (upload_job_id);
+create index if not exists jo_staging_rows_job_idx        on public.jo_staging_rows (upload_job_id);
+create index if not exists im_staging_rows_job_row_idx    on public.im_staging_rows (upload_job_id, row_number);
+create index if not exists jo_staging_rows_job_row_idx    on public.jo_staging_rows (upload_job_id, row_number);
 
 -- dashboard JSON
 create index if not exists im_dashboard_json_job_idx      on public.im_dashboard_json (upload_job_id);

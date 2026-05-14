@@ -102,10 +102,11 @@ function buildValidationMessages(file: File, parsed: ParsedFileName | null): Val
   }
 
   if (file.size > MAX_FILE_BYTES) {
+    const maxMb = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
     msgs.push({
       id:       'size-error',
       severity: 'error',
-      message:  `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 100 MB limit.`,
+      message:  `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${maxMb} MB limit.`,
     });
   } else {
     const sizeLabel = file.size < 1024 * 1024
@@ -365,11 +366,22 @@ export default function OnboardingPage() {
       data_range:   parsed.dataRange   ?? null,
     };
 
-    const res = await fetch('/api/uploads/create-job', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch('/api/uploads/create-job', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+    } catch (error) {
+      addMsg({
+        id:       'job-network-error',
+        severity: 'error',
+        message:  `Failed to reach upload service: ${error instanceof Error ? error.message : 'Network error'}`,
+      });
+      setStatus('error');
+      return;
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

@@ -1,7 +1,7 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const CHUNK_THRESHOLD_BYTES = 10 * 1024 * 1024;   // 10 MB  → use chunk mode above this
-export const MAX_FILE_BYTES        = 100 * 1024 * 1024;  // 100 MB → hard reject above this
+export const MAX_FILE_BYTES        = 50 * 1024 * 1024;   // 50 MB  → hard reject above this
 export const MAX_ERRORS_COLLECTED  = 100;                 // cap collected validation errors
 export const PROGRESS_THROTTLE_MS  = 100;                 // min ms between progress UI updates
 

@@ -20,6 +20,27 @@ function parseSelect(selectText: string): string[] {
   return selectText.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+function normalizeExpression(expr: string): string {
+  // Supabase-style JSON path filters come in like:
+  //   generated_json->meta->>hotel_code
+  // Postgres SQL needs quoted JSON keys:
+  //   generated_json->'meta'->>'hotel_code'
+  if (!expr.includes('->')) return expr;
+  const parts = expr.split('->').map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return expr;
+  const [base, ...rest] = parts;
+  let sql = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(base) ? quoteIdent(base) : base;
+  for (const token of rest) {
+    if (token.startsWith('>')) {
+      const key = token.slice(1).trim();
+      sql += `->>'${key}'`;
+    } else {
+      sql += `->'${token}'`;
+    }
+  }
+  return sql;
+}
+
 class QueryBuilder<T extends QueryResultRow = QueryResultRow> implements PromiseLike<{ data: T[] | null; error: DbError | null }> {
   private selected: string[] | null = null;
   private filters: Array<{ expr: string; op: FilterOp; value: unknown }> = [];
@@ -66,7 +87,7 @@ class QueryBuilder<T extends QueryResultRow = QueryResultRow> implements Promise
     if (this.filters.length === 0) return '';
     const parts = this.filters.map((f) => {
       const idx = params.push(f.value);
-      const left = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(f.expr) ? quoteIdent(f.expr) : f.expr;
+      const left = normalizeExpression(f.expr);
       if (f.op === 'eq') return `${left} = $${idx}`;
       if (f.op === 'ilike') return `${left} ILIKE $${idx}`;
       if (f.op === 'gt') return `${left} > $${idx}`;

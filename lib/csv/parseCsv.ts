@@ -259,7 +259,7 @@ function parseLarge(file: File, config: CsvParseConfig): Promise<ParseResult> {
  *
  * - Files < 10 MB  → single-pass (no chunking)
  * - Files ≥ 10 MB  → 1 MB chunk streaming
- * - Files > 100 MB → rejected immediately
+ * - Files > 20 MB  → rejected immediately
  *
  * onValidRow is called once per valid row — do NOT accumulate in a large array
  * for big files; batch-insert to Supabase from inside the callback instead.
@@ -269,7 +269,8 @@ export async function parseCsv(
   config: CsvParseConfig,
 ): Promise<ParseResult> {
   if (file.size > MAX_FILE_BYTES) {
-    const msg = `File exceeds the 100 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`;
+    const maxMb = Math.floor(MAX_FILE_BYTES / (1024 * 1024));
+    const msg = `File exceeds the ${maxMb} MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`;
     config.onError?.(msg);
     throw new Error(msg);
   }
