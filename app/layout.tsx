@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Incident Analytics Dashboard",
+  title: "FCS1 Dashboard",
   description: "Enterprise incident management analytics — upload, explore, and report.",
 };
 
