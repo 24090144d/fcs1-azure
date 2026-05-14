@@ -1,5 +1,7 @@
 'use client';
 
+import { useI18n } from '@/components/layout/I18nProvider';
+
 export type ProgressStatus = 'uploading' | 'success' | 'error';
 
 interface ProgressBarProps {
@@ -14,7 +16,15 @@ const statusConfig: Record<ProgressStatus, { bar: string; label: string; text: s
 };
 
 export function ProgressBar({ progress, status }: ProgressBarProps) {
-  const { bar, label, text } = statusConfig[status];
+  const { t } = useI18n();
+  const base = statusConfig[status];
+  const label =
+    status === 'uploading'
+      ? t('onboarding.status_uploading', base.label)
+      : status === 'success'
+        ? t('onboarding.status_success', base.label)
+        : t('onboarding.status_failed', base.label);
+  const { bar, text } = base;
   const clamped = Math.min(100, Math.max(0, progress));
 
   return (

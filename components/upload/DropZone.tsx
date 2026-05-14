@@ -2,6 +2,7 @@
 
 import { useRef, useCallback } from 'react';
 import { UploadCloud, FileSpreadsheet } from 'lucide-react';
+import { useI18n } from '@/components/layout/I18nProvider';
 
 interface DropZoneProps {
   onFileSelect: (file: File) => void;
@@ -11,6 +12,7 @@ interface DropZoneProps {
 }
 
 export function DropZone({ onFileSelect, dragActive, onDragChange, disabled = false }: DropZoneProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = useCallback(
@@ -47,7 +49,7 @@ export function DropZone({ onFileSelect, dragActive, onDragChange, disabled = fa
     <div
       role="button"
       tabIndex={disabled ? -1 : 0}
-      aria-label="Upload CSV file — drag and drop or click to browse"
+      aria-label={t('onboarding.dropzone_aria', 'Upload CSV file — drag and drop or click to browse')}
       onDragOver={handleDragOver}
       onDragLeave={() => onDragChange(false)}
       onDrop={handleDrop}
@@ -81,12 +83,12 @@ export function DropZone({ onFileSelect, dragActive, onDragChange, disabled = fa
       {/* Text */}
       <div className="text-center space-y-1 pointer-events-none">
         <p className="font-sans font-semibold text-slate-700 text-sm">
-          {dragActive ? 'Release to upload' : 'Drag & drop your CSV file'}
+          {dragActive ? t('onboarding.dropzone_release', 'Release to upload') : t('onboarding.dropzone_drag', 'Drag & drop your CSV file')}
         </p>
         <p className="font-sans text-sm text-slate-500">
           or{' '}
           <span className="text-gold font-semibold underline underline-offset-2 pointer-events-auto">
-            browse files
+            {t('onboarding.dropzone_browse', 'browse files')}
           </span>
         </p>
       </div>
@@ -97,7 +99,7 @@ export function DropZone({ onFileSelect, dragActive, onDragChange, disabled = fa
           [ChainCode]-[HotelCode]-[HotelName]-[Module]-[CountryCode]-[DataRange].csv
         </p>
         <p className="font-sans text-xs text-slate-400">
-          .csv only · max 100 MB
+          {t('onboarding.dropzone_limit', '.csv only · max 100 MB')}
         </p>
       </div>
 

@@ -23,6 +23,7 @@ import type { CheckFileResponse }  from '@/app/api/uploads/check-file/route';
 import type { CreateJobRequest, CreateJobResponse } from '@/app/api/uploads/create-job/route';
 import type { FinalizeRequest, FinalizeResponse } from '@/app/api/uploads/finalize/route';
 import type { UploadRow, ChunkUploadProgress } from '@/lib/csv/uploadChunks';
+import { useI18n } from '@/components/layout/I18nProvider';
 import { MAX_FILE_BYTES, MAX_ERRORS_COLLECTED } from '@/types/csv';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -128,6 +129,7 @@ function fmt(n: number) { return n.toLocaleString(); }
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
+  const { t } = useI18n();
   const [file,              setFile]              = useState<File | null>(null);
   const [parsed,            setParsed]            = useState<ParsedFileName | null>(null);
   const [dragActive,        setDragActive]        = useState(false);
@@ -451,24 +453,24 @@ export default function OnboardingPage() {
     if (status === 'hashing')    return 'Computing hash…';
     if (status === 'checking')   return 'Checking…';
     if (status === 'parsing')    return 'Parsing…';
-    if (status === 'uploading')  return 'Uploading…';
-    if (status === 'finalizing') return 'Finalizing…';
+    if (status === 'uploading')  return t('onboarding.status_uploading', 'Uploading…');
+    if (status === 'finalizing') return t('onboarding.status_finalizing', 'Finalizing…');
     if (status === 'success')    return '✓ Complete';
-    return 'Parse & Upload';
+    return t('onboarding.button_parse_upload', 'Parse & Upload');
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <AppLayout breadcrumbs={[{ label: 'Onboarding' }, { label: 'Upload CSV' }]}>
+    <AppLayout breadcrumbs={[{ label: t('layout.breadcrumb_onboarding', 'Onboarding') }, { label: t('layout.breadcrumb_upload_csv', 'Upload CSV') }]}>
       <div className="px-4 sm:px-6 md:px-8 py-6 max-w-5xl mx-auto">
 
         {/* Page header */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-2xl font-bold text-slate-800 leading-tight">Upload CSV</h1>
+            <h1 className="font-serif text-2xl font-bold text-slate-800 leading-tight">{t('onboarding.page_title', 'Upload CSV')}</h1>
             <p className="font-sans text-sm text-slate-500 mt-1 max-w-xl">
-              Import incident or job-order data. Select a file, choose an upload mode, and submit.
+              {t('onboarding.page_subtitle', 'Import incident or job-order data. Select a file, choose an upload mode, and submit.')}
             </p>
           </div>
           {file && (
@@ -488,7 +490,7 @@ export default function OnboardingPage() {
 
           {/* Left — file + progress + validation */}
           <div className="lg:col-span-2 space-y-4">
-            <SectionLabel step={1} label="Select File" />
+            <SectionLabel step={1} label={t('onboarding.section_select_file', 'Select File')} />
 
             {!file ? (
               <DropZone
@@ -503,7 +505,7 @@ export default function OnboardingPage() {
             {/* Phase 1 — Parse progress */}
             {showParseProgress && (
               <ProgressCard
-                label="Parse"
+                label={t('onboarding.phase_parse', 'Parse')}
                 sublabel={parseStats ? `${fmt(parseStats.validRows)} valid · ${fmt(parseStats.invalidRows)} invalid` : undefined}
                 progress={parseProgress}
                 status={status === 'error' && !showUploadProgress ? 'error' : status === 'success' ? 'success' : 'uploading'}
@@ -523,7 +525,7 @@ export default function OnboardingPage() {
             {/* Phase 2 — Upload (chunk) progress */}
             {showUploadProgress && (
               <ProgressCard
-                label="Upload"
+                label={t('onboarding.phase_upload', 'Upload')}
                 sublabel={uploadChunkStats
                   ? `Chunk ${uploadChunkStats.chunkIndex + 1} / ${uploadChunkStats.totalChunks}`
                   : undefined}
@@ -532,7 +534,7 @@ export default function OnboardingPage() {
               >
                 {uploadChunkStats && (
                   <StatRow>
-                    <Stat label="Rows uploaded" value={fmt(uploadChunkStats.rowsUploaded)} color="text-slate-600" />
+                    <Stat label={t('onboarding.stat_rows_uploaded', 'Rows uploaded')} value={fmt(uploadChunkStats.rowsUploaded)} color="text-slate-600" />
                     <Stat label="of"            value={fmt(uploadChunkStats.totalRows)}    color="text-slate-400" />
                   </StatRow>
                 )}
@@ -540,13 +542,13 @@ export default function OnboardingPage() {
             )}
 
             {/* Validation panel */}
-            <SectionLabel step={null} label="Validation" />
+            <SectionLabel step={null} label={t('onboarding.section_validation', 'Validation')} />
             <ValidationPanel messages={validationMsgs} />
           </div>
 
           {/* Right — mode + duplicate warning + submit */}
           <div className="space-y-4">
-            <SectionLabel step={2} label="Upload Mode" />
+            <SectionLabel step={2} label={t('onboarding.section_upload_mode', 'Upload Mode')} />
             <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
               <UploadModeSelector
                 value={uploadMode}
@@ -565,7 +567,7 @@ export default function OnboardingPage() {
               />
             )}
 
-            <SectionLabel step={3} label="Submit" />
+            <SectionLabel step={3} label={t('onboarding.section_submit', 'Submit')} />
 
             <button
               type="button"
@@ -603,7 +605,7 @@ export default function OnboardingPage() {
                   <RefreshCw size={14} className="shrink-0 mt-0.5" style={{ color: '#0E7470' }} />
                   <div className="min-w-0">
                     <p className="font-sans font-semibold text-xs" style={{ color: '#0E7470' }}>
-                      Upload complete
+                      {t('onboarding.status_success', 'Upload complete')}
                     </p>
                     <p className="font-sans text-[11px] mt-0.5" style={{ color: '#4A6E6B' }}>
                       {parsed.hotelName} ({parsed.hotelCode}) · {parsed.module} · {parsed.dataRange}
@@ -618,7 +620,7 @@ export default function OnboardingPage() {
                     color:      '#F5F0E8',
                   }}
                 >
-                  View Dashboard
+                  {t('onboarding.button_view_dashboard', 'View Dashboard')}
                   <ArrowRight size={13} />
                 </Link>
               </div>

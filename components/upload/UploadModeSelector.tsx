@@ -1,6 +1,7 @@
 'use client';
 
 import { RefreshCw, PlusCircle, GitMerge } from 'lucide-react';
+import { useI18n } from '@/components/layout/I18nProvider';
 
 export type UploadMode = 'replace' | 'append' | 'upsert';
 
@@ -12,28 +13,6 @@ interface ModeOption {
   badge?:      string;
 }
 
-const OPTIONS: ModeOption[] = [
-  {
-    value:       'replace',
-    label:       'Replace',
-    icon:        RefreshCw,
-    description: 'Delete existing records for this period and load fresh data from the file.',
-    badge:       'Default',
-  },
-  {
-    value:       'append',
-    label:       'Append',
-    icon:        PlusCircle,
-    description: 'Add new rows without modifying or removing existing records.',
-  },
-  {
-    value:       'upsert',
-    label:       'Upsert',
-    icon:        GitMerge,
-    description: 'Update rows that match by key; insert rows that do not exist yet.',
-  },
-];
-
 interface UploadModeSelectorProps {
   value:    UploadMode;
   onChange: (mode: UploadMode) => void;
@@ -41,9 +20,32 @@ interface UploadModeSelectorProps {
 }
 
 export function UploadModeSelector({ value, onChange, disabled = false }: UploadModeSelectorProps) {
+  const { t } = useI18n();
+  const OPTIONS: ModeOption[] = [
+    {
+      value:       'replace',
+      label:       t('upload_mode.replace_label', 'Replace'),
+      icon:        RefreshCw,
+      description: t('upload_mode.replace_desc', 'Delete existing records for this period and load fresh data from the file.'),
+      badge:       'Default',
+    },
+    {
+      value:       'append',
+      label:       t('upload_mode.append_label', 'Append'),
+      icon:        PlusCircle,
+      description: t('upload_mode.append_desc', 'Add new rows without modifying or removing existing records.'),
+    },
+    {
+      value:       'upsert',
+      label:       t('upload_mode.upsert_label', 'Upsert'),
+      icon:        GitMerge,
+      description: t('upload_mode.upsert_desc', 'Update rows that match by key; insert rows that do not exist yet.'),
+    },
+  ];
+
   return (
     <fieldset className="space-y-2" disabled={disabled}>
-      <legend className="sr-only">Upload mode</legend>
+      <legend className="sr-only">{t('upload_mode.legend', 'Upload mode')}</legend>
       {OPTIONS.map(({ value: modeVal, label, icon: Icon, description, badge }) => {
         const selected = value === modeVal;
         return (

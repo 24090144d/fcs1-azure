@@ -4,6 +4,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import type { ChartDef } from '@/types/dashboard';
+import { useI18n } from '@/components/layout/I18nProvider';
 
 // ── Optional Highcharts modules (load once) ───────────────────────────────────
 if (typeof Highcharts === 'object') {
@@ -96,8 +97,8 @@ function makeTheme(dark: boolean): Highcharts.Options {
           theme: { fill: 'transparent' },
           menuItems: [
             'viewFullscreen', 'printChart', 'separator',
-            'downloadPNG', 'downloadSVG', 'separator',
-            'downloadCSV',
+            'downloadPNG', 'downloadJPEG', 'downloadSVG', 'separator',
+            'downloadCSV', 'downloadXLS', 'viewData',
           ],
         },
       },
@@ -121,6 +122,7 @@ interface HcChartProps {
 }
 
 export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcChartProps) {
+  const { t } = useI18n();
   const chartRef = useRef<HighchartsReact.RefObject>(null);
   const theme    = useMemo(() => makeTheme(dark), [dark]);
 
@@ -221,14 +223,14 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
           className="font-sans leading-relaxed"
           style={{ fontSize: '0.67rem', color: footMut }}
         >
-          <span className="font-semibold" style={{ color: dark ? '#C4B8A8' : '#4A4540' }}>Note</span>
-          &nbsp;{def.note}
+            <span className="font-semibold" style={{ color: dark ? '#C4B8A8' : '#4A4540' }}>{t('dashboard_ui.note', 'Note')}</span>
+            &nbsp;{def.note}
         </p>
         <p
           className="font-sans leading-relaxed"
           style={{ fontSize: '0.67rem', color: footMut }}
         >
-          <span className="font-semibold" style={{ color: dark ? '#C4B8A8' : '#4A4540' }}>Formula</span>
+          <span className="font-semibold" style={{ color: dark ? '#C4B8A8' : '#4A4540' }}>{t('dashboard_ui.formula', 'Formula')}</span>
           {' '}
           <code
             className="font-mono"

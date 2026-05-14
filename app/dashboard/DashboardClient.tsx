@@ -6,6 +6,7 @@ import { Sun, Moon, Printer, CalendarDays, X } from 'lucide-react';
 import Highcharts from 'highcharts';
 import { KpiCard }  from '@/components/dashboard/KpiCard';
 import type { ImDashboardJson, DailyBucket, KpiDef, ChartDef, ChainEntry } from '@/types/dashboard';
+import { useI18n } from '@/components/layout/I18nProvider';
 
 const HcChart = dynamic(() => import('@/components/dashboard/HcChart').then(m => m.HcChart), { ssr: false });
 
@@ -369,6 +370,7 @@ function SectionHead({ label, dark }: { label: string; dark: boolean }) {
 
 export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboardJson; chainEntries?: ChainEntry[] }) {
   const isJo = data.meta.schema === 'jo-v1';
+  const { t } = useI18n();
   const [dark,     setDark]     = useState(false);
   const [dateFrom, setDateFrom] = useState(data.meta.date_range.min ?? '');
   const [dateTo,   setDateTo]   = useState(data.meta.date_range.max ?? '');
@@ -406,6 +408,24 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
   const kpis = useMemo(() =>
     isJo ? data.kpis : (fd ? recomputeKpis(data.kpis, fd) : data.kpis),
   [fd, data.kpis, isJo]);
+
+  const localizedKpis = useMemo(() => kpis.map((k) => ({
+    ...k,
+    label: t(`${isJo ? 'kpi_labels_jo' : 'kpi_labels_im'}.${k.id}`, k.label),
+    note: t(`${isJo ? 'kpi_notes_jo' : 'kpi_notes_im'}.${k.id}`, k.note),
+  })), [kpis, isJo, t]);
+
+  const localizedEac = useMemo(() => data.eac.map((c) => ({
+    ...c,
+    title: t(`${isJo ? 'chart_titles_jo' : 'chart_titles_im'}.${c.id}`, c.title),
+    note: t(`${isJo ? 'chart_notes_jo' : 'chart_notes_im'}.${c.id}`, c.note),
+  })), [data.eac, isJo, t]);
+
+  const localizedCharts = useMemo(() => data.charts.map((c) => ({
+    ...c,
+    title: t(`${isJo ? 'chart_titles_jo' : 'chart_titles_im'}.${c.id}`, c.title),
+    note: t(`${isJo ? 'chart_notes_jo' : 'chart_notes_im'}.${c.id}`, c.note),
+  })), [data.charts, isJo, t]);
 
   function chartOpts(def: ChartDef): { override?: Highcharts.Options; fullPeriod: boolean } {
     if (CHAIN_CHARTS.has(def.id)) {
@@ -482,20 +502,20 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
   const naText      = dark ? '#4E4A46' : '#A89070';
 
   // Partition core charts
-  const operationalCharts = isJo ? data.charts : data.charts.filter(c => {
+  const operationalCharts = isJo ? localizedCharts : localizedCharts.filter(c => {
     const n = parseInt(c.id.replace('chart_', ''));
     return n >= 1 && n <= 11;
   });
-  const comparisonCharts = isJo ? [] : data.charts.filter(c => {
+  const comparisonCharts = isJo ? [] : localizedCharts.filter(c => {
     const n = parseInt(c.id.replace('chart_', ''));
     return n >= 12 && n <= 20;
   });
-  const hourlyChart = isJo ? undefined : data.charts.find(c => c.id === 'chart_21');
-  const gaugeCharts = isJo ? [] : data.charts.filter(c => GAUGE_CHARTS.has(c.id));
+  const hourlyChart = isJo ? undefined : localizedCharts.find(c => c.id === 'chart_21');
+  const gaugeCharts = isJo ? [] : localizedCharts.filter(c => GAUGE_CHARTS.has(c.id));
   const hasChain    = !isJo && chainEntries.length >= 2;
 
   // c05(eac[4]) ↔ c02(eac[1])  and  c13(operationalCharts[6]) ↔ c06(eac[5])
-  const reorderedEac = [...data.eac];
+  const reorderedEac = [...localizedEac];
   const reorderedOperational = [...operationalCharts];
   if (!isJo && reorderedEac.length > 5 && reorderedOperational.length > 6) {
     [reorderedEac[1], reorderedEac[4]] = [reorderedEac[4], reorderedEac[1]];
@@ -525,8 +545,8 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
             {data.meta.source_name}
           </p>
           <p className="font-mono mt-0.5" style={{ fontSize: '0.6rem', letterSpacing: '0.05em', color: metaSub }}>
-            {data.meta.total_records.toLocaleString()} records
-            {' · '}Generated {new Date(data.meta.generated_at).toLocaleString()}
+            {data.meta.total_records.toLocaleString()} {t('dashboard_ui.records_suffix', 'records')}
+            {' · '}{t('dashboard_ui.generated_prefix', 'Generated')} {new Date(data.meta.generated_at).toLocaleString()}
             {hasChain && ` · ${chainEntries.length} hotels in chain`}
           </p>
         </div>
@@ -558,7 +578,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
             className="font-mono font-medium px-3 py-1.5 transition-opacity hover:opacity-85"
             style={{ fontSize: '0.68rem', letterSpacing: '0.06em', background: teal, color: '#FAF7F2' }}
           >
-            APPLY
+            {t('dashboard_ui.filter_apply', 'Apply').toUpperCase()}
           </button>
           {filtered && (
             <button
@@ -566,7 +586,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
               className="flex items-center gap-1 font-mono px-2 py-1.5 transition-opacity hover:opacity-75"
               style={{ fontSize: '0.68rem', color: teal, border: `1px solid ${teal}33` }}
             >
-              <X size={11} /> CLEAR
+              <X size={11} /> {t('dashboard_ui.filter_clear', 'Clear').toUpperCase()}
             </button>
           )}
         </div>
@@ -578,20 +598,20 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
             className="flex items-center gap-1.5 font-mono px-3 py-1.5 transition-opacity hover:opacity-75"
             style={{ fontSize: '0.68rem', letterSpacing: '0.06em', color: orange, border: `1px solid ${orange}33` }}
           >
-            <Printer size={12} /> EXPORT PDF
+            <Printer size={12} /> {t('dashboard_ui.export_pdf', 'Export PDF').toUpperCase()}
           </button>
           <button
             type="button" onClick={() => setDark(d => !d)}
             className="p-1.5 transition-opacity hover:opacity-75"
             style={{ color: metaSub, border: `1px solid ${toolbarBd}` }}
-            aria-label="Toggle dark mode"
+            aria-label={t('dashboard_ui.toggle_dark_mode', 'Toggle dark mode')}
           >
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
       </div>
 
-      <div className="px-6 py-8 space-y-12 max-w-screen-2xl mx-auto">
+      <div className="px-6 py-5 space-y-7 max-w-screen-2xl mx-auto">
 
         {/* ── Print-only title (hidden on screen) ───────────────────────────── */}
         <div className="print-title hidden" style={{ borderBottom: '2px solid #0E7470', paddingBottom: '6mm' }}>
@@ -600,16 +620,16 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
             {data.meta.country_code ? ` (${data.meta.country_code})` : ''}
           </p>
           <p className="font-mono" style={{ fontSize: '0.6rem', color: '#6B6560', marginTop: '3px', letterSpacing: '0.06em' }}>
-            {isJo ? 'JO Dashboard' : 'IM Dashboard'} · {data.meta.total_records.toLocaleString()} records ·
-            Generated {new Date(data.meta.generated_at).toLocaleDateString()}
+            {isJo ? t('dashboard_ui.dashboard_label_jo', 'JO Dashboard') : t('dashboard_ui.dashboard_label_im', 'IM Dashboard')} · {data.meta.total_records.toLocaleString()} {t('dashboard_ui.records_suffix', 'records')} ·
+            {t('dashboard_ui.generated_prefix', 'Generated')} {new Date(data.meta.generated_at).toLocaleDateString()}
           </p>
         </div>
 
         {/* ── KPIs ──────────────────────────────────────────────────────────── */}
         <section className="kpi-print-section">
-          <SectionHead label="Key Performance Indicators" dark={dark} />
+          <SectionHead label={t('dashboard_ui.section_kpi', 'Key Performance Indicators')} dark={dark} />
           <div className="kpi-grid mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {kpis.map(k => <KpiCard key={k.id} kpi={k} dark={dark} />)}
+            {localizedKpis.map(k => <KpiCard key={k.id} kpi={k} dark={dark} />)}
           </div>
           {filtered && (
             <p className="mt-1 font-mono" style={{ fontSize: '0.6rem', color: naText }}>
@@ -620,7 +640,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
 
         {/* ── EAC ──────────────────────────────────────────────────────────── */}
         <section>
-          <SectionHead label="Executive Analysis Charts" dark={dark} />
+          <SectionHead label={t('dashboard_ui.section_charts', 'Executive Analysis Charts')} dark={dark} />
           <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             {reorderedEac.map((def, i) => {
               const { override, fullPeriod } = chartOpts(def);
@@ -631,7 +651,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
 
         {/* ── Operational ──────────────────────────────────────────────────── */}
         <section>
-          <SectionHead label={isJo ? 'Operational Detail — JO View' : 'Operational Detail — GM View'} dark={dark} />
+          <SectionHead label={isJo ? t('dashboard_ui.operational_jo', 'Operational Detail — JO View') : t('dashboard_ui.operational_im', 'Operational Detail — GM View')} dark={dark} />
           <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             {reorderedOperational.map((def, i) => {
               const { override, fullPeriod } = chartOpts(def);
@@ -644,12 +664,12 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         {!isJo && (
         <section>
           <SectionHead
-            label={hasChain ? `Chain Comparison — ${chainEntries.length} Hotels` : 'Chain Comparison'}
+            label={hasChain ? `${t('dashboard_ui.chain_comparison', 'Chain Comparison')} — ${chainEntries.length} ${t('dashboard_ui.hotels', 'Hotels')}` : t('dashboard_ui.chain_comparison', 'Chain Comparison')}
             dark={dark}
           />
           {!hasChain && (
             <p className="mt-1.5 mb-4 font-mono" style={{ fontSize: '0.62rem', color: naText }}>
-              Upload CSVs for other hotels in the same chain to enable cross-hotel benchmarking.
+              {t('dashboard_ui.benchmarking_hint', 'Upload CSVs for other hotels in the same chain to enable cross-hotel benchmarking.')}
             </p>
           )}
           <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -664,7 +684,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         {/* ── Time / Volume detail ──────────────────────────────────────────── */}
         {!isJo && hourlyChart && (
           <section>
-            <SectionHead label="Time Patterns" dark={dark} />
+            <SectionHead label={t('dashboard_ui.time_patterns', 'Time Patterns')} dark={dark} />
             <div className="chart-grid mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
               <HcChart
                 key={hourlyChart.id}
@@ -680,7 +700,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         {/* ── Gauges ───────────────────────────────────────────────────────── */}
         {!isJo && gaugeCharts.length > 0 && (
           <section>
-            <SectionHead label="Performance Gauges" dark={dark} />
+            <SectionHead label={t('dashboard_ui.performance_gauges', 'Performance Gauges')} dark={dark} />
             <div className="chart-grid mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
               {gaugeCharts.map((def, i) => {
                 const { override, fullPeriod } = chartOpts(def);
@@ -695,7 +715,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
           className="pt-6 flex items-center justify-between font-mono"
           style={{ borderTop: `1px solid ${footerBd}`, fontSize: '0.6rem', letterSpacing: '0.08em', color: footerText }}
         >
-          <span>fcs1-dash · {isJo ? 'Job Order Dashboard' : 'Incident Management Dashboard'}</span>
+          <span>fcs1-dash · {isJo ? t('dashboard_ui.dashboard_full_label_jo', 'Job Order Dashboard') : t('dashboard_ui.dashboard_full_label_im', 'Incident Management Dashboard')}</span>
           <span>Highcharts · Supabase · Next.js</span>
         </footer>
       </div>

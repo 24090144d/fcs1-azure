@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { Menu } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { I18nProvider, useI18n } from './I18nProvider';
 
 interface Breadcrumb {
   label: string;
@@ -16,8 +18,19 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, breadcrumbs, headerRight }: AppLayoutProps) {
+  return (
+    <I18nProvider>
+      <AppLayoutInner breadcrumbs={breadcrumbs} headerRight={headerRight}>
+        {children}
+      </AppLayoutInner>
+    </I18nProvider>
+  );
+}
+
+function AppLayoutInner({ children, breadcrumbs, headerRight }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pinned, setPinned] = useState(true);
+  const { t } = useI18n();
 
   useEffect(() => {
     try {
@@ -58,7 +71,7 @@ export function AppLayout({ children, breadcrumbs, headerRight }: AppLayoutProps
             onClick={() => setSidebarOpen(true)}
             className={['transition-colors -ml-1', pinned ? 'lg:hidden' : ''].join(' ')}
             style={{ color: '#6B6560' }}
-            aria-label="Open menu"
+            aria-label={t('layout.open_menu', 'Open menu')}
           >
             <Menu size={18} />
           </button>
@@ -78,7 +91,13 @@ export function AppLayout({ children, breadcrumbs, headerRight }: AppLayoutProps
                       fontWeight: i === breadcrumbs.length - 1 ? 600 : 400,
                     }}
                   >
-                    {bc.label}
+                    {bc.label === 'Dashboard'
+                      ? t('layout.breadcrumb_dashboard', bc.label)
+                      : bc.label === 'Onboarding'
+                        ? t('layout.breadcrumb_onboarding', bc.label)
+                        : bc.label === 'Upload CSV'
+                          ? t('layout.breadcrumb_upload_csv', bc.label)
+                          : bc.label}
                   </span>
                 </span>
               ))}
@@ -86,6 +105,7 @@ export function AppLayout({ children, breadcrumbs, headerRight }: AppLayoutProps
           )}
 
           <div className="flex-1" />
+          <LanguageSwitcher />
           {headerRight}
         </header>
 
