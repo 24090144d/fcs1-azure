@@ -12,7 +12,6 @@ const SEV_ORDER   = ['Critical', 'High', 'Medium', 'Low'] as const;
 const SEV_COLORS  = { Critical: '#dc3545', High: '#fd7e14', Medium: '#ffc107', Low: '#28a745' };
 const STAT_COLORS: Record<string, string> = { Completed: '#22c55e', Cancelled: '#94a3b8' };
 const WD_NAMES    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const VIP_PLACEHOLDERS = new Set(['-', '—', 'n/a', 'na', 'none', 'null', '']);
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -62,13 +61,14 @@ function r1(n: number) { return Math.round(n * 10) / 10; }
 function r2(n: number) { return Math.round(n * 100) / 100; }
 
 function isVip(rr: Record<string, unknown>): boolean {
-  for (const f of ['vip_code', 'vip', 'vip_type', 'guest_vip']) {
-    const v = rr[f];
-    if (v !== null && v !== undefined) {
-      if (!VIP_PLACEHOLDERS.has(String(v).trim().toLowerCase())) return true;
-    }
-  }
-  return false;
+  // IM rule: VIP is decided by vip_code only.
+  // Non-VIP when vip_code is null/undefined, blank/whitespace, or '-'.
+  const raw = rr.vip_code;
+  if (raw === null || raw === undefined) return false;
+  const code = String(raw).trim();
+  if (!code) return false;
+  if (code === '-') return false;
+  return true;
 }
 
 function findField(rr: Record<string, unknown>, ...fields: string[]): string | null {
@@ -170,6 +170,7 @@ interface ImAcc {
   roomMap:       Record<string, number>;
   deptMap:       Record<string, number>;
   sourceMap:     Record<string, number>;
+  bookingMap:    Record<string, number>;
   hourMap:       Record<number, number>;
   weekMap:       Record<string, number>;
   dailyMap:      Record<string, DayBucket>;
@@ -181,9 +182,12 @@ interface ImAcc {
   sevDailyMap:   Record<string, Record<string, number>>;
   monthSevMap:   Record<string, Record<string, number>>;
   wdMonthMap:    Record<string, Record<number, number>>;
+  weekSourceMap: Record<string, Record<string, number>>; // week -> source -> count
   statusDeptMap: Record<string, Record<string, number>>; // status → dept → count
   sourceDeptMap: Record<string, Record<string, number>>; // source → dept → count
+  deptSourceMap: Record<string, Record<string, number>>; // dept -> source -> count
   deptCatMap:    Record<string, Record<string, number>>; // dept → category → count
+  deptItemMap:   Record<string, Record<string, number>>; // dept → incident item → count
   vipDeptMap:    Record<string, number>;
   repeatMap:     Map<string, number>;
   nightsBkts:    Record<string, number>;
@@ -197,9 +201,11 @@ function newImAcc(): ImAcc {
     firstResponseSum: 0, firstResponseCount: 0,
     statusMap: {}, severityMap: {}, categoryMap: {}, itemMap: {}, roomMap: {},
     deptMap: {}, sourceMap: {}, hourMap: {}, weekMap: {},
+    bookingMap: {},
     dailyMap: {}, monthMap: {}, weekdayMap: {},
     catStatusMap: {}, catSevMap: {}, catDailyMap: {}, sevDailyMap: {}, monthSevMap: {}, wdMonthMap: {},
-    statusDeptMap: {}, sourceDeptMap: {}, deptCatMap: {}, vipDeptMap: {},
+    weekSourceMap: {},
+    statusDeptMap: {}, sourceDeptMap: {}, deptSourceMap: {}, deptCatMap: {}, deptItemMap: {}, vipDeptMap: {},
     repeatMap: new Map(),
     nightsBkts: { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5+': 0 },
     repeatCount: 0,
@@ -215,7 +221,10 @@ function accumulate(acc: ImAcc, rr: Record<string, unknown>) {
   const room     = toStr(rr.room_no)            ?? '';
   const nights   = toNum(rr.nights);
   const dept     = findField(rr, 'department', 'incident_location', 'location', 'department_name') ?? '';
-  const source   = findField(rr, 'source_of_complaint', 'booking_source', 'complaint_source', 'source', 'channel', 'report_source') ?? '';
+  const sourceRaw = rr.source_of_complaint;
+  const source = sourceRaw === null || sourceRaw === undefined ? 'Unknown' : String(sourceRaw);
+  const bookingRaw = rr.booking_source;
+  const booking = bookingRaw === null || bookingRaw === undefined ? 'Unknown' : String(bookingRaw);
   const vip      = isVip(rr);
 
   if (status === 'Completed') acc.completed++;
@@ -229,7 +238,8 @@ function accumulate(acc: ImAcc, rr: Record<string, unknown>) {
   inc(acc.itemMap,     item     || null);
   inc(acc.roomMap,     room     || null);
   inc(acc.deptMap,     dept     || null);
-  inc(acc.sourceMap,   source   || null);
+  inc(acc.sourceMap, source);
+  inc(acc.bookingMap, booking);
 
   if (vip) {
     acc.vipTotal++;
@@ -246,13 +256,15 @@ function accumulate(acc: ImAcc, rr: Record<string, unknown>) {
   if (!acc.statusDeptMap[status]) acc.statusDeptMap[status] = {};
   inc(acc.statusDeptMap[status], dept || null);
 
-  if (source) {
-    if (!acc.sourceDeptMap[source]) acc.sourceDeptMap[source] = {};
-    inc(acc.sourceDeptMap[source], dept || null);
-  }
+  if (!acc.sourceDeptMap[source]) acc.sourceDeptMap[source] = {};
+  inc(acc.sourceDeptMap[source], dept || null);
+  if (!acc.deptSourceMap[dept]) acc.deptSourceMap[dept] = {};
+  inc(acc.deptSourceMap[dept], source);
 
   if (!acc.deptCatMap[dept]) acc.deptCatMap[dept] = {};
   inc(acc.deptCatMap[dept], category || null);
+  if (!acc.deptItemMap[dept]) acc.deptItemMap[dept] = {};
+  inc(acc.deptItemMap[dept], item || null);
 
   const rk = `${room}::${category}::${item}`;
   const prevCnt = acc.repeatMap.get(rk) ?? 0;
@@ -309,6 +321,8 @@ function accumulate(acc: ImAcc, rr: Record<string, unknown>) {
       acc.weekdayMap[wd] = (acc.weekdayMap[wd] ?? 0) + 1;
       acc.hourMap[hr]    = (acc.hourMap[hr]    ?? 0) + 1;
       acc.weekMap[wkKey] = (acc.weekMap[wkKey] ?? 0) + 1;
+      if (!acc.weekSourceMap[wkKey]) acc.weekSourceMap[wkKey] = {};
+      inc(acc.weekSourceMap[wkKey], source || null);
 
       if (!acc.wdMonthMap[monthKey]) acc.wdMonthMap[monthKey] = {};
       acc.wdMonthMap[monthKey][wd] = (acc.wdMonthMap[monthKey][wd] ?? 0) + 1;
@@ -981,6 +995,13 @@ function buildImJson(acc: ImAcc, upload_job_id: string, source_name: string, hot
     status_map:   acc.statusMap,
     dept_map:     acc.deptMap,
     category_map: acc.categoryMap,
+    item_map:     acc.itemMap,
+    dept_item_map: acc.deptItemMap,
+    dept_category_map: acc.deptCatMap,
+    week_map:     acc.weekMap,
+    week_source_map: acc.weekSourceMap,
+    dept_source_map: acc.deptSourceMap,
+    booking_map:  acc.bookingMap,
     source_map:   acc.sourceMap,
     severity_map: acc.severityMap,
   };

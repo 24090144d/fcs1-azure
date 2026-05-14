@@ -14,6 +14,7 @@ const HcChart = dynamic(() => import('@/components/dashboard/HcChart').then(m =>
 
 const CHAIN_CHARTS = new Set(['chart_12', 'chart_13', 'chart_14', 'chart_15', 'chart_16', 'chart_17', 'chart_18', 'chart_20']);
 const GAUGE_CHARTS = new Set(['eac_06', 'chart_22', 'chart_23', 'chart_24']);
+const CORP_IM_TOP_IDS = new Set(['chart_18', 'chart_19', 'chart_20', 'chart_21', 'chart_22', 'chart_23', 'chart_24', 'chart_25', 'chart_26', 'chart_27']);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -342,6 +343,270 @@ function buildChainOptions(id: string, entries: ChainEntry[]): Highcharts.Option
   }
 }
 
+function buildCorpImOptions(id: string, entries: ChainEntry[]): Highcharts.Options | undefined {
+  if (entries.length < 2) return undefined;
+  const codes = entries.map(e => e.hotel_code);
+  const statusKeys = Array.from(
+    new Set(entries.flatMap((e) => Object.keys(e.summary.status_map ?? {}))),
+  ).sort((a, b) => {
+    const rank = (k: string) => (k === 'Completed' ? 0 : k === 'Pending' ? 1 : k === 'Cancelled' ? 2 : 3);
+    return rank(a) - rank(b) || a.localeCompare(b);
+  });
+
+  if (id === 'chart_18') {
+    return hcOpts({
+      chart: { type: 'bar' },
+      xAxis: { categories: codes },
+      yAxis: { min: 0, title: { text: 'Incidents' } },
+      plotOptions: { series: { stacking: 'normal' } },
+      series: statusKeys.map((status) => ({
+        type: 'bar',
+        name: status,
+        data: entries.map((e) => e.summary.status_map[status] ?? 0),
+      })),
+      tooltip: { shared: true },
+    });
+  }
+
+  if (id === 'chart_19') {
+    return hcOpts({
+      chart: { type: 'column' },
+      xAxis: { categories: codes },
+      yAxis: [
+        { title: { text: 'VIP Incidents' }, min: 0 },
+        { title: { text: 'VIP Closure Rate (%)' }, opposite: true, min: 0, max: 100 },
+      ],
+      series: [
+        {
+          type: 'column',
+          name: 'VIP Incidents',
+          data: entries.map((e) => e.summary.vip_total),
+          color: '#0E7470',
+        },
+        {
+          type: 'spline',
+          name: 'VIP Closure Rate %',
+          yAxis: 1,
+          data: entries.map((e) => {
+            const total = e.summary.vip_total;
+            return total > 0 ? r1((e.summary.vip_completed / total) * 100) : 0;
+          }),
+          color: '#C55A10',
+        },
+      ],
+      tooltip: { shared: true },
+    });
+  }
+
+  if (id === 'chart_20') {
+    return hcOpts({
+      chart: { type: 'column' },
+      xAxis: { categories: codes },
+      yAxis: { min: 0, title: { text: 'Incidents' } },
+      plotOptions: { series: { stacking: 'normal' } },
+      series: [
+        {
+          type: 'column',
+          name: 'VIP',
+          data: entries.map((e) => e.summary.vip_total),
+          color: '#0E7470',
+        },
+        {
+          type: 'column',
+          name: 'Non-VIP',
+          data: entries.map((e) => Math.max(e.summary.total - e.summary.vip_total, 0)),
+          color: '#C55A10',
+        }
+      ],
+      tooltip: { shared: true },
+    });
+  }
+
+  if (id === 'chart_21') return buildChainOptions('chart_20', entries); // Repeat rate
+  if (id === 'chart_22') {
+    const topLevel = entries.map((e) => ({
+      name: e.hotel_code,
+      y: e.summary.total,
+      drilldown: e.hotel_code,
+    }));
+    const drillSeries = entries.map((e) => ({
+      id: e.hotel_code,
+      name: `${e.hotel_code} Top 10`,
+      type: 'pie' as const,
+      innerSize: '45%',
+      data: Object.entries(((e.summary as { item_map?: Record<string, number> }).item_map) ?? e.summary.category_map ?? {})
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([name, y]) => ({ name, y })),
+    }));
+    return hcOpts({
+      chart: { type: 'pie' },
+      series: [{
+        name: 'Incidents',
+        type: 'pie',
+        innerSize: '45%',
+        data: topLevel,
+      }],
+      drilldown: { series: drillSeries },
+      tooltip: { pointFormat: '<b>{point.y}</b> incidents' },
+    });
+  }
+  if (id === 'chart_23') return buildChainOptions('chart_13', entries); // Closure rate
+  if (id === 'chart_24') {
+    const topLevel = entries.map((e) => ({
+      name: e.hotel_code,
+      y: e.summary.total,
+      drilldown: `hotel:${e.hotel_code}`,
+    }));
+    const drillSeries: Array<{
+      id: string;
+      name: string;
+      type: 'column';
+      data: Array<{ name: string; y: number; drilldown?: string }>;
+    }> = [];
+
+    for (const e of entries) {
+      const hotel = e.hotel_code;
+      const topDepts = Object.entries(e.summary.dept_map ?? {})
+        .sort(([, a], [, b]) => b - a);
+
+      drillSeries.push({
+        id: `hotel:${hotel}`,
+        name: `${hotel} Departments`,
+        type: 'column',
+        data: topDepts.map(([dept, total]) => ({ name: dept, y: total })),
+      });
+    }
+
+    return hcOpts({
+      chart: { type: 'column' },
+      xAxis: { type: 'category' },
+      yAxis: { title: { text: 'Incidents' }, min: 0 },
+      plotOptions: { column: { dataLabels: { enabled: true, format: '{point.y}' } } },
+      series: [{
+        name: 'Incidents',
+        type: 'column',
+        data: topLevel,
+      }],
+      drilldown: { series: drillSeries },
+      tooltip: { pointFormat: '<b>{point.y}</b> incidents' },
+    });
+  }
+  if (id === 'chart_25') {
+    const topHotels = entries
+      .map((e) => ({ hotel: e.hotel_code, total: e.summary.total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+    if (topHotels.length === 0) return undefined;
+
+    const drillSeries: Array<{
+      id: string;
+      name: string;
+      type: 'pie';
+      innerSize: string;
+      data: Array<{ name: string; y: number }>;
+    }> = topHotels.map((h) => {
+      const entry = entries.find((e) => e.hotel_code === h.hotel);
+      const rows = Object.entries(entry?.summary.source_map ?? {})
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([name, y]) => ({ name, y }));
+      return {
+        id: `h:${h.hotel}`,
+        name: `${h.hotel} Source of Complaint`,
+        type: 'pie',
+        innerSize: '45%',
+        data: rows.length > 0 ? rows : [{ name: 'Unknown', y: 0 }],
+      };
+    });
+
+    return hcOpts({
+      chart: { type: 'pie' },
+      series: [{
+        name: 'Incidents',
+        type: 'pie',
+        innerSize: '45%',
+        data: topHotels.map((h) => ({ name: h.hotel, y: h.total, drilldown: `h:${h.hotel}` })),
+      }],
+      drilldown: {
+        series: drillSeries,
+      },
+      tooltip: { pointFormat: '<b>{point.y}</b> incidents' },
+    });
+  }
+  if (id === 'chart_26') {
+    const topLevel = entries.map((e) => ({
+      name: e.hotel_code,
+      y: e.summary.total,
+      drilldown: e.hotel_code,
+    }));
+    const drillSeries = entries.map((e) => ({
+      id: e.hotel_code,
+      name: `${e.hotel_code} Top 10`,
+      type: 'pie' as const,
+      innerSize: '45%',
+      data: Object.entries(e.summary.category_map ?? {})
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([name, y]) => ({ name, y })),
+    }));
+    return hcOpts({
+      chart: { type: 'pie' },
+      series: [{
+        name: 'Incidents',
+        type: 'pie',
+        innerSize: '45%',
+        data: topLevel,
+      }],
+      drilldown: { series: drillSeries },
+      tooltip: { pointFormat: '<b>{point.y}</b> incidents' },
+    });
+  }
+  if (id === 'chart_27') {
+    const topHotels = entries
+      .map((e) => ({ hotel: e.hotel_code, total: e.summary.total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+    if (topHotels.length === 0) return undefined;
+    return hcOpts({
+      chart: { type: 'pie' },
+      series: [{
+        name: 'Incidents',
+        type: 'pie',
+        innerSize: '45%',
+        data: topHotels.map((h) => ({ name: h.hotel, y: h.total, drilldown: h.hotel })),
+      }],
+      drilldown: {
+        series: topHotels.map((h) => {
+          const entry = entries.find((e) => e.hotel_code === h.hotel);
+          const booking = (entry?.summary as { booking_map?: Record<string, number> } | undefined)?.booking_map ?? {};
+          const primaryRows = Object.entries(booking)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 10)
+            .map(([name, y]) => ({ name, y }));
+          const sourceFallback = Object.entries(entry?.summary.source_map ?? {})
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 10)
+            .map(([name, y]) => ({ name, y }));
+          const rows = primaryRows.length > 0
+            ? primaryRows
+            : (sourceFallback.length > 0 ? sourceFallback : [{ name: 'Unknown', y: entry?.summary.total ?? 0 }]);
+          return {
+            id: h.hotel,
+            name: `${h.hotel} Booking Source`,
+            type: 'pie' as const,
+            innerSize: '45%',
+            data: rows,
+          };
+        }),
+      },
+      tooltip: { pointFormat: '<b>{point.y}</b> incidents' },
+    });
+  }
+
+  return undefined;
+}
+
 // ── Section label ─────────────────────────────────────────────────────────────
 
 function SectionHead({ label, dark }: { label: string; dark: boolean }) {
@@ -370,9 +635,12 @@ function SectionHead({ label, dark }: { label: string; dark: boolean }) {
 
 export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboardJson; chainEntries?: ChainEntry[] }) {
   const isJo = data.meta.schema === 'jo-v1';
+  const isCorp = String(data.meta.hotel_code ?? '').toUpperCase() === 'CORP';
   const { t } = useI18n();
   const moduleLabel = isJo ? 'JO' : 'IM';
-  const contextTitle = data.meta.hotel_name
+  const contextTitle = isCorp
+    ? `${(data.meta.chain_code ?? 'CORP').toUpperCase()} · ${moduleLabel}`
+    : data.meta.hotel_name
     ? `${data.meta.hotel_name} · ${data.meta.hotel_code ?? ''} · ${moduleLabel}${data.meta.country_code ? ` (${data.meta.country_code})` : ''}`
     : data.meta.source_name;
   const [dark,     setDark]     = useState(false);
@@ -431,7 +699,27 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
     note: t(`${isJo ? 'chart_notes_jo' : 'chart_notes_im'}.${c.id}`, c.note),
   })), [data.charts, isJo, t]);
 
+  const corpImTopCharts = useMemo<ChartDef[]>(() => {
+    if (isJo || !isCorp) return [];
+    return [
+      { id: 'chart_22', title: 'Hotel Incident -> Top 10 Incident Item', options: {}, note: 'Donut drilldown from hotel incident volume to top 10 incident items (incident item name).', formula: 'COUNT by hotel -> top 10 incident_item_name counts per hotel', filterable: false },
+      { id: 'chart_18', title: 'Total Incident vs Status by Hotel', options: {}, note: 'Stacked bar by hotel status mix.', formula: 'SUM(status) by hotel', filterable: false },
+      { id: 'chart_19', title: 'VIP Closure Rate vs VIP Incident by Hotel', options: {}, note: 'Bar + line dual-axis comparison.', formula: 'VIP total and VIP completed/VIP total', filterable: false },
+      { id: 'chart_26', title: 'Hotel Incident -> Top 10 Incident Category', options: {}, note: 'Donut drilldown from hotel incident volume to top 10 incident categories.', formula: 'COUNT by hotel -> top 10 category counts per hotel', filterable: false },
+      { id: 'chart_21', title: 'Chain — Repeat Incident Rate by Hotel', options: {}, note: '', formula: '', filterable: false },
+      { id: 'chart_23', title: 'Chain — Closure Rate by Hotel', options: {}, note: '', formula: '', filterable: false },
+      { id: 'chart_24', title: 'Hotel -> Department', options: {}, note: 'Column drilldown from hotel incident volume to department incident volume, with data labels.', formula: 'COUNT by hotel -> COUNT by department', filterable: false },
+      { id: 'chart_25', title: 'Hotel -> Source of Complaint', options: {}, note: 'Donut drilldown from hotel incident volume to source-of-complaint distribution.', formula: 'COUNT by hotel -> COUNT by source_of_complaint', filterable: false },
+      { id: 'chart_20', title: 'VIP vs Non-VIP by Hotel', options: {}, note: 'Vertical stacked bar by hotel.', formula: 'VIP count and (Total - VIP) by hotel', filterable: false },
+      { id: 'chart_27', title: 'Hotel -> Booking Source', options: {}, note: 'Donut drilldown from hotel incident volume to booking source distribution.', formula: 'COUNT by hotel -> COUNT by booking_source', filterable: false },
+    ];
+  }, [isJo, isCorp]);
+
   function chartOpts(def: ChartDef): { override?: Highcharts.Options; fullPeriod: boolean } {
+    if (isCorp && !isJo && CORP_IM_TOP_IDS.has(def.id)) {
+      const corpOpts = buildCorpImOptions(def.id, chainEntries);
+      if (corpOpts) return { override: corpOpts, fullPeriod: false };
+    }
     if (CHAIN_CHARTS.has(def.id)) {
       const chainOpts = buildChainOptions(def.id, chainEntries);
       if (chainOpts) return { override: chainOpts, fullPeriod: false };
@@ -516,7 +804,27 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
   });
   const hourlyChart = isJo ? undefined : localizedCharts.find(c => c.id === 'chart_21');
   const gaugeCharts = isJo ? [] : localizedCharts.filter(c => GAUGE_CHARTS.has(c.id));
-  const hasChain    = !isJo && chainEntries.length >= 2;
+  const hasChain    = chainEntries.length >= 2;
+  const corpBenchmarkRows = useMemo(() => {
+    if (!isCorp || isJo || chainEntries.length === 0) return [];
+    return [...chainEntries]
+      .sort((a, b) => a.hotel_code.localeCompare(b.hotel_code))
+      .map((e) => {
+        const total = e.summary.total;
+        const critical = e.summary.severity_map?.Critical ?? 0;
+        const criticalPct = total > 0 ? r1((critical / total) * 100) : 0;
+        const closureRate = total > 0 ? r1((e.summary.completed / total) * 100) : 0;
+        return {
+          hotel: e.hotel_name || e.hotel_code,
+          total,
+          criticalPct,
+          vipCases: e.summary.vip_total,
+          avgResolution: 'N/A',
+          incidentPerNight: 'N/A',
+          closureRate,
+        };
+      });
+  }, [isCorp, isJo, chainEntries]);
 
   // c05(eac[4]) ↔ c02(eac[1])  and  c13(operationalCharts[6]) ↔ c06(eac[5])
   const reorderedEac = [...localizedEac];
@@ -552,6 +860,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
             {data.meta.total_records.toLocaleString()} {t('dashboard_ui.records_suffix', 'records')}
             {' · '}{t('dashboard_ui.generated_prefix', 'Generated')} {new Date(data.meta.generated_at).toLocaleString()}
             {hasChain && ` · ${chainEntries.length} hotels in chain`}
+            {isCorp && ` · Corp comparison view`}
           </p>
         </div>
 
@@ -642,6 +951,18 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         </section>
 
         {/* ── EAC ──────────────────────────────────────────────────────────── */}
+        {isCorp && !isJo && corpImTopCharts.length > 0 && (
+          <section>
+            <SectionHead label={'Corp Comparison Top 10'} dark={dark} />
+            <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {corpImTopCharts.map((def) => {
+                const { override, fullPeriod } = chartOpts(def);
+                return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
+              })}
+            </div>
+          </section>
+        )}
+
         <section>
           <SectionHead label={t('dashboard_ui.section_charts', 'Executive Analysis Charts')} dark={dark} />
           <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -664,7 +985,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
         </section>
 
         {/* ── Chain Comparison ──────────────────────────────────────────────── */}
-        {!isJo && (
+        {(!isJo || isCorp) && (
         <section>
           <SectionHead
             label={hasChain ? `${t('dashboard_ui.chain_comparison', 'Chain Comparison')} — ${chainEntries.length} ${t('dashboard_ui.hotels', 'Hotels')}` : t('dashboard_ui.chain_comparison', 'Chain Comparison')}
@@ -709,6 +1030,51 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
                 const { override, fullPeriod } = chartOpts(def);
                 return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
               })}
+            </div>
+          </section>
+        )}
+
+        {/* ── Corp benchmark table ─────────────────────────────────────── */}
+        {isCorp && !isJo && corpBenchmarkRows.length > 0 && (
+          <section>
+            <SectionHead label={'Benchmark by Hotel Table'} dark={dark} />
+            <div
+              className="mt-4 overflow-x-auto"
+              style={{
+                background: dark ? '#252220' : '#FAF7F2',
+                border: `1px solid ${dark ? '#3A3530' : '#B9A88A'}`,
+                borderLeft: `4px solid ${dark ? '#14A89E' : '#0E7470'}`,
+                borderRadius: '12px',
+              }}
+            >
+              <table className="min-w-full">
+                <thead>
+                  <tr style={{ background: dark ? '#1F1D1A' : '#F5F0E8' }}>
+                    {['Hotel', 'Total Cases', 'Critical %', 'VIP Cases', 'Avg Resolution Time', 'Incident/Night', 'Closure Rate'].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-3 py-2 font-mono uppercase"
+                        style={{ fontSize: '0.62rem', letterSpacing: '0.08em', color: dark ? '#C4B8A8' : '#4A4540', borderBottom: `1px solid ${dark ? '#302D2A' : '#D9C8A8'}` }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {corpBenchmarkRows.map((r, idx) => (
+                    <tr key={`${r.hotel}-${idx}`}>
+                      <td className="px-3 py-2 font-sans" style={{ fontSize: '0.78rem', color: dark ? '#EDE8E0' : '#1A1714', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.hotel}</td>
+                      <td className="px-3 py-2 font-mono" style={{ fontSize: '0.72rem', color: dark ? '#EDE8E0' : '#1A1714', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.total}</td>
+                      <td className="px-3 py-2 font-mono" style={{ fontSize: '0.72rem', color: dark ? '#EDE8E0' : '#1A1714', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.criticalPct}%</td>
+                      <td className="px-3 py-2 font-mono" style={{ fontSize: '0.72rem', color: dark ? '#EDE8E0' : '#1A1714', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.vipCases}</td>
+                      <td className="px-3 py-2 font-mono" style={{ fontSize: '0.72rem', color: dark ? '#8A857E' : '#6B6560', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.avgResolution}</td>
+                      <td className="px-3 py-2 font-mono" style={{ fontSize: '0.72rem', color: dark ? '#8A857E' : '#6B6560', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.incidentPerNight}</td>
+                      <td className="px-3 py-2 font-mono" style={{ fontSize: '0.72rem', color: dark ? '#EDE8E0' : '#1A1714', borderBottom: `1px solid ${dark ? '#302D2A' : '#EFE3CF'}` }}>{r.closureRate}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
         )}

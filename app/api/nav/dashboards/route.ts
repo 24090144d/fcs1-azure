@@ -27,6 +27,7 @@ export interface NavDashItem {
   country_code: string;
   label:        string;
   href:         string;
+  scope?:       'hotel' | 'corp';
 }
 
 export interface NavChain {
@@ -72,23 +73,43 @@ export async function GET() {
 
     if (chainMap.size === 0) return NextResponse.json({ chains: [] });
 
-    const chains: NavChain[] = Array.from(chainMap.entries()).map(([chain, hotelMap]) => ({
-      chain,
-      items: Array.from(hotelMap.entries()).flatMap(([hotel_code, { hotel_name, country_code, mods }]) =>
-        (['im', 'jo'] as const)
-          .filter(m => mods.has(m))
-          .map(m => ({
-            module: m,
+    const chains: NavChain[] = Array.from(chainMap.entries()).map(([chain, hotelMap]) => {
+      const items: NavDashItem[] = [];
+
+      for (const moduleCode of ['im', 'jo'] as const) {
+        const hotelsForModule = Array.from(hotelMap.entries())
+          .filter(([, { mods }]) => mods.has(moduleCode))
+          .sort(([a], [b]) => a.localeCompare(b));
+
+        if (hotelsForModule.length >= 2) {
+          items.push({
+            module: moduleCode,
+            hotel_code: 'CORP',
+            hotel_name: 'Corp',
+            country_code: '',
+            label: moduleCode === 'im' ? 'Corp · IM' : 'Corp · JO',
+            href: `/dashboard?hotel=corp&chain=${encodeURIComponent(chain)}&module=${moduleCode}`,
+            scope: 'corp',
+          });
+        }
+
+        for (const [hotel_code, { hotel_name, country_code }] of hotelsForModule) {
+          items.push({
+            module: moduleCode,
             hotel_code,
             hotel_name,
             country_code,
-            label: m === 'im' ? 'IM Dashboard' : 'JO Dashboard',
-            href:  m === 'im'
+            label: moduleCode === 'im' ? 'IM Dashboard' : 'JO Dashboard',
+            href: moduleCode === 'im'
               ? `/dashboard?hotel=${hotel_code}`
               : `/dashboard?module=jo&hotel=${hotel_code}`,
-          }))
-      ),
-    }));
+            scope: 'hotel',
+          });
+        }
+      }
+
+      return { chain, items };
+    });
 
     return NextResponse.json({ chains });
   } catch (e) {

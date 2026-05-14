@@ -112,6 +112,7 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
   const pathname      = usePathname();
   const searchParams  = useSearchParams();
   const currentHotel  = searchParams.get('hotel') ?? '';
+  const currentChain  = searchParams.get('chain') ?? '';
   const currentModule = searchParams.get('module') ?? 'im';
   const [chains, setChains] = useState<NavChain[]>([]);
   const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set());
@@ -304,9 +305,16 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
             const isExpanded = expandedChains.has(chain);
             const hasActive  = items.some(
               item => pathname === '/dashboard' &&
-                      item.hotel_code === currentHotel &&
-                      item.module    === currentModule
+                      item.module === currentModule &&
+                      (
+                        (item.hotel_code === 'CORP' && currentHotel.toLowerCase() === 'corp' && currentChain.toUpperCase() === chain.toUpperCase()) ||
+                        (item.hotel_code !== 'CORP' && item.hotel_code === currentHotel)
+                      )
             );
+            const moduleGroups = (['im', 'jo'] as const).map((m) => ({
+              module: m,
+              entries: items.filter((it) => it.module === m),
+            })).filter((g) => g.entries.length > 0);
             return (
               <div key={chain}>
                 {/* Collapsible chain header */}
@@ -346,40 +354,64 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
                 {/* Items — only when expanded */}
                 {(collapsed || isExpanded) && (
                   <nav className="px-1 space-y-px">
-                    {items.map(item => {
-                      const active =
-                        pathname === '/dashboard' &&
-                        item.hotel_code === currentHotel &&
-                        item.module    === currentModule;
-                      return (
-                        <NavItem
-                          key={`${chain}-${item.hotel_code}-${item.module}`}
-                          href={item.href}
-                          active={active}
-                          onClose={onClose}
-                          onNavigateStart={() => setNavigating(true)}
-                          T={t}
-                          collapsed={collapsed}
-                        >
-                          {item.module === 'jo' ? (
-                            <BarChart2 size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
-                          ) : (
-                            <LineChart size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
-                          )}
-                          {!collapsed && (
-                            <span className="truncate">
-                              <span style={{ fontWeight: 600 }}>{item.hotel_code}</span>
-                              <span style={{ opacity: 0.55 }}>
-                                {' · '}
-                                {item.module === 'jo'
-                                  ? tr('sidebar.label_jo_dashboard', item.label)
-                                  : tr('sidebar.label_im_dashboard', item.label)}
-                              </span>
+                    {moduleGroups.map((group) => (
+                      <div key={`${chain}-${group.module}`} className="pt-1">
+                        {!collapsed && (
+                          <div className="px-4 py-1.5">
+                            <span
+                              className="font-mono uppercase"
+                              style={{ fontSize: '0.54rem', letterSpacing: '0.16em', color: t.dim }}
+                            >
+                              {group.module === 'jo' ? 'JO' : 'IM'}
                             </span>
-                          )}
-                        </NavItem>
-                      );
-                    })}
+                          </div>
+                        )}
+                        {group.entries.map(item => {
+                          const active =
+                            pathname === '/dashboard' &&
+                            item.module === currentModule &&
+                            (
+                              (item.hotel_code === 'CORP' && currentHotel.toLowerCase() === 'corp' && currentChain.toUpperCase() === chain.toUpperCase()) ||
+                              (item.hotel_code !== 'CORP' && item.hotel_code === currentHotel)
+                            );
+                          const isCorp = item.hotel_code === 'CORP';
+                          return (
+                            <NavItem
+                              key={`${chain}-${item.hotel_code}-${item.module}`}
+                              href={item.href}
+                              active={active}
+                              onClose={onClose}
+                              onNavigateStart={() => setNavigating(true)}
+                              T={t}
+                              collapsed={collapsed}
+                            >
+                              {item.module === 'jo' ? (
+                                <BarChart2 size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
+                              ) : (
+                                <LineChart size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
+                              )}
+                              {!collapsed && (
+                                <span className="truncate">
+                                  {isCorp ? (
+                                    <span style={{ fontWeight: 600 }}>Corp · {item.module.toUpperCase()}</span>
+                                  ) : (
+                                    <>
+                                      <span style={{ fontWeight: 600 }}>{item.hotel_code}</span>
+                                      <span style={{ opacity: 0.55 }}>
+                                        {' · '}
+                                        {item.module === 'jo'
+                                          ? tr('sidebar.label_jo_dashboard', item.label)
+                                          : tr('sidebar.label_im_dashboard', item.label)}
+                                      </span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                            </NavItem>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </nav>
                 )}
               </div>

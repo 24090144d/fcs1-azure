@@ -39,6 +39,73 @@ function deepMerge(
   return out;
 }
 
+function applyLabelRules(raw: Highcharts.Options): Highcharts.Options {
+  const opts = { ...raw };
+  const series = (opts.series ?? []) as Highcharts.SeriesOptionsType[];
+  const firstType = String((series[0] as { type?: string } | undefined)?.type ?? '');
+
+  // Pie/Donut: show label + value
+  if (firstType === 'pie') {
+    const plotOptions = (opts.plotOptions ?? {}) as Highcharts.PlotOptions;
+    const piePlot = (plotOptions.pie ?? {}) as Highcharts.PlotPieOptions;
+    opts.plotOptions = {
+      ...plotOptions,
+      pie: {
+        ...piePlot,
+        dataLabels: {
+          ...(piePlot.dataLabels ?? {}),
+          enabled: true,
+          format: '<b>{point.name}</b><br/>{point.y}',
+        },
+      },
+    };
+    return opts;
+  }
+
+  // Bar/Column: if <=10 categories, show data value
+  const catCount = Array.isArray((opts.xAxis as Highcharts.XAxisOptions)?.categories)
+    ? (((opts.xAxis as Highcharts.XAxisOptions).categories as unknown[])?.length ?? 0)
+    : 0;
+  if ((firstType === 'bar' || firstType === 'column') && catCount > 0 && catCount <= 10) {
+    const plotOptions = (opts.plotOptions ?? {}) as Highcharts.PlotOptions;
+    const target = firstType === 'bar' ? (plotOptions.bar ?? {}) : (plotOptions.column ?? {});
+    opts.plotOptions = {
+      ...plotOptions,
+      [firstType]: {
+        ...target,
+        dataLabels: {
+          ...(((target as unknown as { dataLabels?: Record<string, unknown> }).dataLabels) ?? {}),
+          enabled: true,
+          format: '{point.y}',
+        },
+      },
+    };
+  }
+
+  // Line family: if <=10 points, show node values
+  const lineTypes = new Set(['line', 'spline', 'areaspline']);
+  const firstSeriesDataLen = Array.isArray((series[0] as { data?: unknown[] } | undefined)?.data)
+    ? (((series[0] as { data?: unknown[] }).data)?.length ?? 0)
+    : 0;
+  if (lineTypes.has(firstType) && firstSeriesDataLen > 0 && firstSeriesDataLen <= 10) {
+    const plotOptions = (opts.plotOptions ?? {}) as Highcharts.PlotOptions;
+    const target = (plotOptions[firstType as keyof Highcharts.PlotOptions] ?? {}) as Record<string, unknown>;
+    opts.plotOptions = {
+      ...plotOptions,
+      [firstType]: {
+        ...target,
+        dataLabels: {
+          ...((target.dataLabels as Record<string, unknown> | undefined) ?? {}),
+          enabled: true,
+          format: '{point.y}',
+        },
+      },
+    };
+  }
+
+  return opts;
+}
+
 // ── Editorial Vintage Highcharts theme ───────────────────────────────────────
 
 const LIGHT_PALETTE = ['#C55A10', '#0E7470', '#7B3F28', '#1A6E6A', '#D4774A', '#3A9E9A', '#9B6A3A', '#5A8A6A'];
@@ -108,6 +175,9 @@ function makeTheme(dark: boolean): Highcharts.Options {
       menuItemStyle:     { color: text, fontFamily: "'Manrope', sans-serif", fontSize: '12px' },
       menuItemHoverStyle:{ background: dark ? '#302D2A' : '#EDE8E0', color: text },
     },
+    credits: {
+      enabled: false,
+    },
   };
 }
 
@@ -128,10 +198,11 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
 
   const options = useMemo<Highcharts.Options>(() => {
     const base = overrideOptions ?? (def.options as Highcharts.Options);
-    return deepMerge(
+    const merged = deepMerge(
       theme as unknown as Record<string, unknown>,
       base  as unknown as Record<string, unknown>,
     ) as unknown as Highcharts.Options;
+    return applyLabelRules(merged);
   }, [theme, def.options, overrideOptions]);
 
   // Re-apply theme on dark/light toggle; skip if user is mid-drilldown
