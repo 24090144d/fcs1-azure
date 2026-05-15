@@ -143,6 +143,42 @@
     "kpi_09": "Total number of incidents in the selected period. Benchmark: Good <= 800, Watch 801-1200, Bad > 1200 (thresholds should be tuned by property scale).",
     "kpi_10": "Concentration of incident volume in top 5 categories; higher can indicate systemic concentration risk. Benchmark: Good <= 45%, Watch 45-60%, Bad > 60%."
   },
+  "corp_kpi_labels": {
+    "kpi_01": "Corporate Risk Score",
+    "kpi_02": "Critical Incident Rate",
+    "kpi_03": "Hotel Benchmark Index",
+    "kpi_04": "VIP Incident Exposure",
+    "kpi_05": "SLA Breach Rate",
+    "kpi_06": "Closure Rate",
+    "kpi_07": "VIP Closure Rate",
+    "kpi_08": "Repeat Guest Complaint Rate",
+    "kpi_09": "Total Incident Volume",
+    "kpi_10": "Root Cause Concentration"
+  },
+  "corp_kpi_notes": {
+    "kpi_01": "Composite corporate health index balancing severity, VIP exposure, and SLA breach risk. Benchmark: Good >= 85, Watch 70-84.9, Bad < 70.",
+    "kpi_02": "Share of incidents classified as Critical. Benchmark: Good <= 1%, Watch 1-2%, Bad > 2%.",
+    "kpi_03": "Average cross-hotel benchmark index for fair chain-level comparison. Benchmark: Good >= 85, Watch 75-84.9, Bad < 75.",
+    "kpi_04": "Portion of incidents involving VIP guests; tracks premium-service risk. Benchmark: Good <= 6%, Watch 6-10%, Bad > 10%.",
+    "kpi_05": "Operational discipline KPI based on breach/late/overdue-like statuses. Benchmark: Good <= 3%, Watch 3-5%, Bad > 5%.",
+    "kpi_06": "Percentage of incidents that reached completed/closed state. Benchmark: Good >= 95%, Watch 90-94.9%, Bad < 90%.",
+    "kpi_07": "Resolution efficiency for VIP incidents. Benchmark: Good >= 95%, Watch 90-94.9%, Bad < 90%.",
+    "kpi_08": "Recurrence pressure indicator tied to loyalty/retention risk. Benchmark: Good <= 15%, Watch 15-25%, Bad > 25%.",
+    "kpi_09": "Total number of incidents in the selected period. Benchmark: Good <= 800, Watch 801-1200, Bad > 1200 (thresholds should be tuned by property scale).",
+    "kpi_10": "Concentration of incident volume in top 5 categories; higher can indicate systemic concentration risk. Benchmark: Good <= 45%, Watch 45-60%, Bad > 60%."
+  },
+  "corp_kpi_formulas": {
+    "kpi_01": "100 - [ (Avg Severity/4 * 45) + (VIP Exposure * 30) + (SLA Breach Rate * 25) ]",
+    "kpi_02": "Critical Cases / Total Cases * 100",
+    "kpi_03": "AVG per-hotel [100 - (Severity*40 + VIP*30 + SLA*30)]",
+    "kpi_04": "VIP Cases / Total Cases * 100",
+    "kpi_05": "SLA Breach Cases / Total Cases * 100",
+    "kpi_06": "Completed Cases / Total Cases * 100",
+    "kpi_07": "VIP Completed Cases / VIP Cases * 100",
+    "kpi_08": "Repeat Complaint Cases / Total Cases * 100",
+    "kpi_09": "COUNT(All Incidents)",
+    "kpi_10": "Top 5 Incident Categories Cases / Total Cases * 100"
+  },
   "chart_titles_im": {
     "eac_01": "Incident by Status -> Department",
     "eac_02": "Severity Breakdown",

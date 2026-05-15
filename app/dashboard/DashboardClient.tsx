@@ -1084,9 +1084,14 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
   }, [isCorp, isJo, data.summary, data.raw_daily, chainEntries, fd?.weekMap]);
 
   const localizedKpis = useMemo(() => {
-    // Corp IM uses dedicated KPI names/definitions and should not be remapped
-    // by legacy kpi_01..kpi_10 i18n labels.
-    if (corpImKpis) return corpImKpis;
+    if (corpImKpis) {
+      return corpImKpis.map((k) => ({
+        ...k,
+        label: t(`corp_kpi_labels.${k.id}`, k.label),
+        note: t(`corp_kpi_notes.${k.id}`, k.note),
+        formula: t(`corp_kpi_formulas.${k.id}`, k.formula),
+      }));
+    }
     return kpis.map((k) => ({
       ...k,
       label: t(`${isJo ? 'kpi_labels_jo' : 'kpi_labels_im'}.${k.id}`, k.label),
@@ -1110,13 +1115,13 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
     if (isJo || !isCorp) return [];
     return CORP_IM_TOP_MAP.map((m) => ({
       id: m.id,
-      title: m.title,
+      title: t(`imc_chart_map.${m.code}`, m.title),
       options: {},
-      note: m.note,
-      formula: m.formula,
+      note: t(`imc_chart_notes.${m.code}`, m.note),
+      formula: t(`imc_chart_formulas.${m.code}`, m.formula),
       filterable: false,
     }));
-  }, [isJo, isCorp]);
+  }, [isJo, isCorp, t]);
 
   function chartOpts(def: ChartDef): { override?: Highcharts.Options; fullPeriod: boolean } {
     if (isCorp && !isJo && CORP_IM_TOP_IDS.has(def.id)) {
