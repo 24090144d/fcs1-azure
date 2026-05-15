@@ -18,6 +18,14 @@ Run the baseline schema:
 psql "<DATABASE_URL_UNPOOLED_OR_DATABASE_URL>" -f sql/schema.sql
 ```
 
+If your DB already exists, also apply incremental migrations:
+
+```bash
+psql "<DATABASE_URL_UNPOOLED_OR_DATABASE_URL>" -f sql/migrations/001_upload_tracking.sql
+psql "<DATABASE_URL_UNPOOLED_OR_DATABASE_URL>" -f sql/migrations/002_jo_schema_alignment.sql
+psql "<DATABASE_URL_UNPOOLED_OR_DATABASE_URL>" -f sql/migrations/003_record_scope_columns.sql
+```
+
 Then seed at least one organization record used by upload job creation:
 
 ```sql

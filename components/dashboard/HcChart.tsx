@@ -11,10 +11,12 @@ if (typeof Highcharts === 'object') {
   /* eslint-disable @typescript-eslint/no-require-imports */
   const Exp     = require('highcharts/modules/exporting');
   const ExpData = require('highcharts/modules/export-data');
+  const MapMod  = require('highcharts/modules/map');
   const Heatmap = require('highcharts/modules/heatmap');
   const Drill   = require('highcharts/modules/drilldown');
   if (typeof Exp     === 'function') Exp(Highcharts);
   if (typeof ExpData === 'function') ExpData(Highcharts);
+  if (typeof MapMod  === 'function') MapMod(Highcharts);
   if (typeof Heatmap === 'function') Heatmap(Highcharts);
   if (typeof Drill   === 'function') Drill(Highcharts);
   /* eslint-enable @typescript-eslint/no-require-imports */
@@ -205,6 +207,12 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
     return applyLabelRules(merged);
   }, [theme, def.options, overrideOptions]);
 
+  const constructorType = useMemo(() => {
+    const series = (options.series ?? []) as Array<{ type?: string }>;
+    const hasMap = series.some((s) => s?.type === 'map' || s?.type === 'mapline' || s?.type === 'mappoint');
+    return hasMap ? 'mapChart' : 'chart';
+  }, [options.series]);
+
   // Re-apply theme on dark/light toggle; skip if user is mid-drilldown
   useEffect(() => {
     const chart = chartRef.current?.chart;
@@ -280,6 +288,7 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
         <HighchartsReact
           ref={chartRef}
           highcharts={Highcharts}
+          constructorType={constructorType}
           options={options}
           containerProps={{ style: { height: `${def.height ?? 310}px` } }}
         />

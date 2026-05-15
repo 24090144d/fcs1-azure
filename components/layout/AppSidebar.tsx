@@ -79,7 +79,8 @@ function NavItem({
     <Link
       href={href}
       onClick={() => {
-        onNavigateStart?.();
+        // Prevent sticky loading state when user clicks the current page item.
+        if (!active) onNavigateStart?.();
         onClose();
       }}
       className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'} px-3 py-2.5 font-sans`}
@@ -117,6 +118,8 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
   const [chains, setChains] = useState<NavChain[]>([]);
   const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set());
   const [resettingDb, setResettingDb] = useState(false);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [resetPasswordInput, setResetPasswordInput] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const { t: tr } = useI18n();
@@ -156,18 +159,40 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
     setNavigating(false);
   }, [pathname, currentHotel, currentModule]);
 
+  useEffect(() => {
+    if (!navigating) return;
+    const timer = window.setTimeout(() => setNavigating(false), 8000);
+    return () => window.clearTimeout(timer);
+  }, [navigating]);
+
   const t = tokens(dark);
 
   async function handleResetDatabase() {
     if (resettingDb) return;
+    setResetPasswordInput('');
+    setResetPasswordOpen(true);
+  }
+
+  async function submitResetDatabase() {
+    const password = resetPasswordInput.trim();
+    if (!password) {
+      alert(tr('sidebar.reset_password_empty', 'Reset cancelled: password is required.'));
+      return;
+    }
+
     const confirmed = window.confirm(
       `${tr('sidebar.confirm_reset_title', 'Reset Database?')}\n\n${tr('sidebar.confirm_reset_body', 'Yes: truncate all data and keep schema.\nNo: cancel.')}`
     );
     if (!confirmed) return;
+    setResetPasswordOpen(false);
 
     setResettingDb(true);
     try {
-      const res = await fetch('/api/admin/reset-database', { method: 'POST' });
+      const res = await fetch('/api/admin/reset-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(`${tr('sidebar.reset_failure_prefix', 'Reset failed:')} ${(body as { error?: string }).error ?? res.statusText}`);
@@ -184,6 +209,45 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
 
   return (
     <>
+      {resetPasswordOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center" style={{ background: 'rgba(20,18,16,0.55)' }}>
+          <div className="w-[min(92vw,360px)] p-4" style={{ background: '#FAF7F2', border: '1px solid #D9C8A8' }}>
+            <p className="font-mono uppercase" style={{ fontSize: '0.66rem', letterSpacing: '0.12em', color: '#2f2924' }}>
+              {tr('sidebar.reset_password_title', 'Reset password required')}
+            </p>
+            <input
+              type="password"
+              value={resetPasswordInput}
+              onChange={(e) => setResetPasswordInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void submitResetDatabase();
+              }}
+              className="mt-3 w-full px-2 py-1.5 font-mono outline-none"
+              style={{ border: '1px solid #C4B090', background: '#fff', color: '#2f2924', fontSize: '0.72rem' }}
+              placeholder={tr('sidebar.password', 'Password')}
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setResetPasswordOpen(false)}
+                className="px-3 py-1.5 font-mono"
+                style={{ fontSize: '0.66rem', border: '1px solid #C4B090', color: '#6b6253' }}
+              >
+                {tr('sidebar.cancel', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitResetDatabase()}
+                className="px-3 py-1.5 font-mono"
+                style={{ fontSize: '0.66rem', border: '1px solid #0E7470', background: '#0E7470', color: '#FAF7F2' }}
+              >
+                {tr('sidebar.confirm', 'Confirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Backdrop */}
       {navigating && (
         <div

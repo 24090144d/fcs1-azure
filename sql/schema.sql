@@ -82,6 +82,10 @@ create table if not exists public.im_records (
   upload_job_id    uuid        not null references public.upload_jobs(id) on delete cascade,
   uploaded_file_id uuid        references public.uploaded_files(id),
   source_row_id    bigint,
+  chain_code       text,
+  hotel_code       text,
+  module_code      text,
+  country_code     text,
 
   -- ── Incident identity ──────────────────────────────────────────────────────
   incident_case    text,                   -- e.g. IC-00539-001
@@ -181,6 +185,10 @@ create table if not exists public.jo_records (
   upload_job_id    uuid        not null references public.upload_jobs(id) on delete cascade,
   uploaded_file_id uuid        references public.uploaded_files(id),
   source_row_id    bigint,
+  chain_code       text,
+  hotel_code       text,
+  module_code      text,
+  country_code     text,
 
   department_name      text,
   created_datetime     timestamptz,
@@ -255,11 +263,13 @@ create index if not exists im_records_department_idx      on public.im_records (
 create index if not exists im_records_booking_source_idx  on public.im_records (booking_source);
 create index if not exists im_records_profile_type_idx    on public.im_records (profile_type);
 create index if not exists im_records_incident_category_idx on public.im_records (incident_category);
+create index if not exists im_records_scope_idx           on public.im_records (chain_code, hotel_code, module_code, country_code);
 
 -- jo_records
 create index if not exists jo_records_job_idx             on public.jo_records (upload_job_id);
 create index if not exists jo_records_status_idx          on public.jo_records (job_status);
 create index if not exists jo_records_created_datetime_idx on public.jo_records (created_datetime);
+create index if not exists jo_records_scope_idx           on public.jo_records (chain_code, hotel_code, module_code, country_code);
 
 -- staging lookup/per-job cleanup
 create index if not exists im_staging_rows_job_idx        on public.im_staging_rows (upload_job_id);

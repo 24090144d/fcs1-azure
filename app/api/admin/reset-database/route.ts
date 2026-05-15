@@ -5,8 +5,34 @@ function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
 }
 
-export async function POST() {
+function todayPasswordHKT(): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Hong_Kong',
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const yy = parts.find((p) => p.type === 'year')?.value ?? '';
+  const mm = parts.find((p) => p.type === 'month')?.value ?? '';
+  const dd = parts.find((p) => p.type === 'day')?.value ?? '';
+  return `${yy}${mm}${dd}`;
+}
+
+export async function POST(req: Request) {
   try {
+    let password = '';
+    try {
+      const body = await req.json() as { password?: string };
+      password = String(body?.password ?? '');
+    } catch {
+      password = '';
+    }
+
+    const expected = todayPasswordHKT();
+    if (password !== expected) {
+      return NextResponse.json({ ok: false, error: 'Invalid reset password' }, { status: 403 });
+    }
+
     const pool = getPool();
 
     const { rows } = await pool.query<{ table_name: string }>(

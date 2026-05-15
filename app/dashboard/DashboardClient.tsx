@@ -14,18 +14,26 @@ const HcChart = dynamic(() => import('@/components/dashboard/HcChart').then(m =>
 
 const CHAIN_CHARTS = new Set(['chart_12', 'chart_13', 'chart_14', 'chart_15', 'chart_16', 'chart_17', 'chart_18', 'chart_20']);
 const GAUGE_CHARTS = new Set(['eac_06', 'chart_22', 'chart_23', 'chart_24']);
-const CORP_IM_TOP_IDS = new Set(['chart_18', 'chart_19', 'chart_20', 'chart_21', 'chart_22', 'chart_23', 'chart_24', 'chart_25', 'chart_26', 'chart_27']);
+const CORP_IM_TOP_IDS = new Set(['chart_18', 'chart_19', 'chart_20', 'chart_21', 'chart_22', 'chart_23', 'chart_24', 'chart_25', 'chart_26', 'chart_27', 'chart_28', 'chart_29', 'chart_30', 'chart_31', 'chart_33', 'chart_34', 'chart_35', 'chart_36']);
 const CORP_IM_TOP_MAP: Array<{ code: string; id: string; title: string; note: string; formula: string }> = [
-  { code: 'imc01', id: 'chart_22', title: 'Hotel Incident -> Top 10 Incident Item', note: 'Donut drilldown from hotel incident volume to top 10 incident items (incident item name).', formula: 'COUNT by hotel -> top 10 incident_item_name counts per hotel' },
-  { code: 'imc02', id: 'chart_18', title: 'Total Incident vs Status by Hotel', note: 'Stacked bar by hotel status mix.', formula: 'SUM(status) by hotel' },
-  { code: 'imc03', id: 'chart_19', title: 'VIP Closure Rate vs VIP Incident by Hotel', note: 'Bar + line dual-axis comparison.', formula: 'VIP total and VIP completed/VIP total' },
-  { code: 'imc04', id: 'chart_26', title: 'Hotel Incident -> Top 10 Incident Category', note: 'Donut drilldown from hotel incident volume to top 10 incident categories.', formula: 'COUNT by hotel -> top 10 category counts per hotel' },
-  { code: 'imc05', id: 'chart_21', title: 'Chain — Repeat Incident Rate by Hotel', note: '', formula: '' },
-  { code: 'imc06', id: 'chart_23', title: 'Worldmap Incident by Hotel', note: 'Country detected from CountryCode. Labels/tooltips show per-country hotel incident counts (comma-separated when multiple hotels).', formula: 'SUM(incidents) by country_code for color; display hotel_code + incident_count list' },
-  { code: 'imc07', id: 'chart_24', title: 'Hotel -> Department', note: 'Column drilldown from hotel incident volume to department incident volume, with data labels.', formula: 'COUNT by hotel -> COUNT by department' },
-  { code: 'imc08', id: 'chart_25', title: 'Hotel -> Source of Complaint', note: 'Donut drilldown from hotel incident volume to source-of-complaint distribution.', formula: 'COUNT by hotel -> COUNT by source_of_complaint' },
-  { code: 'imc09', id: 'chart_20', title: 'VIP vs Non-VIP by Hotel', note: 'Vertical stacked bar by hotel.', formula: 'VIP count and (Total - VIP) by hotel' },
-  { code: 'imc10', id: 'chart_27', title: 'Hotel -> Booking Source', note: 'Donut drilldown from hotel incident volume to booking source distribution.', formula: 'COUNT by hotel -> COUNT by booking_source' },
+  { code: 'imc01', id: 'chart_22', title: 'Hotel Incident -> Top 10 Incident Item', note: 'Shows each hotel total then top 10 incident items for drilldown prioritization. Benchmark: Good when top 3 items <= 45% of hotel incidents; Bad when top 3 items > 60% (concentration risk).', formula: 'Level 1 = COUNT(incident_case) GROUP BY hotel_code; Level 2 = TOP 10 COUNT(incident_case) GROUP BY incident_item_name per hotel' },
+  { code: 'imc02', id: 'chart_18', title: 'Total Incident vs Status by Hotel', note: 'Compares hotel volume and status mix to detect closure imbalance. Benchmark: Good when Completed >= 95% and Pending <= 5%; Bad when Pending > 10%.', formula: 'COUNT(incident_case) GROUP BY hotel_code, incident_status' },
+  { code: 'imc03', id: 'chart_19', title: 'VIP Closure Rate vs VIP Incident by Hotel', note: 'Dual-axis chart for premium guest risk and recovery effectiveness. Benchmark: Good VIP Closure >= 95%; Bad < 90%.', formula: 'VIP Incidents = COUNT(vip_code valid) GROUP BY hotel; VIP Closure % = VIP Completed / VIP Incidents * 100' },
+  { code: 'imc04', id: 'chart_26', title: 'Hotel Incident -> Top 10 Incident Category', note: 'Drilldown from hotel totals to top 10 categories for root-cause governance. Benchmark: Good when top category <= 20%; Bad when top category > 35%.', formula: 'Level 1 = COUNT(incident_case) GROUP BY hotel_code; Level 2 = TOP 10 COUNT(incident_case) GROUP BY incident_category per hotel' },
+  { code: 'imc05', id: 'chart_21', title: 'Chain — Repeat Incident Rate by Hotel', note: 'Shows recurrence pressure by hotel to flag unresolved systemic issues. Benchmark: Good <= 15%; Watch 15–25%; Bad > 25%.', formula: 'Repeat Rate % = repeat_count / total_cases * 100 per hotel' },
+  { code: 'imc06', id: 'chart_23', title: 'Worldmap Incident by Hotel', note: 'Country-level map with hotel-level labels for cross-region executive visibility. Benchmark: Good when no single country exceeds 50% of chain incidents; Bad when one country > 70%.', formula: 'Country Value = SUM(total_cases) GROUP BY country_code; Label = CONCAT(hotel_code, incident_count) list per country' },
+  { code: 'imc07', id: 'chart_24', title: 'Hotel -> Department', note: 'Hotel-to-department drilldown for operational ownership alignment. Benchmark: Good when no department exceeds 25% of hotel incidents; Bad > 40%.', formula: 'Level 1 = COUNT(incident_case) GROUP BY hotel_code; Level 2 = COUNT(incident_case) GROUP BY department per hotel' },
+  { code: 'imc08', id: 'chart_25', title: 'Hotel -> Source of Complaint', note: 'Hotel-to-source drilldown for channel quality control. Benchmark: Good when Unknown Source <= 5%; Bad > 15%.', formula: 'Level 1 = COUNT(incident_case) GROUP BY hotel_code; Level 2 = COUNT(incident_case) GROUP BY source_of_complaint per hotel' },
+  { code: 'imc09', id: 'chart_20', title: 'VIP vs Non-VIP by Hotel', note: 'Stacked comparison of VIP and non-VIP load by hotel. Benchmark: Good VIP Share <= 6%; Watch 6–10%; Bad > 10%.', formula: 'VIP = COUNT(vip_code valid); Non-VIP = total_cases - VIP; GROUP BY hotel_code' },
+  { code: 'imc10', id: 'chart_27', title: 'Hotel -> Booking Source', note: 'Drilldown from hotel totals to booking source composition for commercial insights. Benchmark: Good when Unknown booking <= 5%; Bad > 15%.', formula: 'Level 1 = COUNT(incident_case) GROUP BY hotel_code; Level 2 = COUNT(incident_case) GROUP BY booking_source per hotel' },
+  { code: 'imc11', id: 'chart_28', title: 'Multi-Hotel Benchmark Scorecard', note: 'Executive matrix comparing risk, critical, VIP, SLA, and trend in one panel. Benchmark: Good risk score <= 60; Watch 60–100; Bad > 100.', formula: 'Risk Score = (Critical*5) + (High*3) + (VIP*4) + (SLA Breach*3) + (Open*2) + volume_adjust' },
+  { code: 'imc12', id: 'chart_29', title: 'Hotel Risk Ranking', note: 'Ranks hotels by weighted risk for intervention priority. Benchmark: Good when high-risk hotel count reduces period-over-period; Bad when top hotel risk grows >10% WoW.', formula: 'Hotel Risk = Severity Score + (VIP*4) + (Open*2) + (SLA*3)' },
+  { code: 'imc13', id: 'chart_30', title: 'Severity vs Volume Quadrant', note: 'Bubble quadrant for strategic risk classification (high volume + high severity = immediate focus). Benchmark: Good when no hotel in top-right high-risk quadrant; Bad when multiple hotels cluster there.', formula: 'X=COUNT(cases), Y=AVG(severity score), Bubble=VIP cases, Color=country/region' },
+  { code: 'imc14', id: 'chart_31', title: 'Regional Risk Heatmap', note: 'Region matrix compares critical, VIP, SLA breach and trend intensity. Benchmark: Good when all risk cells trend down or stay green; Bad when >=2 metrics red in same region.', formula: 'Regional KPI = AVG(metric by hotel in region); Regional Risk = aggregate of weighted KPI intensities' },
+  { code: 'imc15', id: 'chart_33', title: 'Department Risk Heatmap', note: 'Shows department risk intensity by hotel to target governance actions. Benchmark: Good when top department risk <= 20% of hotel total; Bad > 35%.', formula: 'Department Risk Proxy = COUNT(cases) by hotel_code + department (or weighted severity where available)' },
+  { code: 'imc16', id: 'chart_34', title: 'Root Cause Pareto Chart', note: 'Ranks root causes and cumulative contribution for improvement prioritization. Benchmark: Good when top 5 causes <= 45%; Bad when top 5 > 60%.', formula: 'Bars = COUNT(incident_category/item); Cumulative % = running_total / total_cases * 100' },
+  { code: 'imc17', id: 'chart_35', title: 'Open Critical Aging Dashboard', note: 'Highlights unresolved critical burden (aging proxy) by hotel for escalation governance. Benchmark: Good = 0 open critical aging; Bad when persistent > 3 cases.', formula: 'Open Critical Aging Proxy = MIN(critical_cases, pending_cases) by hotel (aging date fallback when explicit age not present)' },
+  { code: 'imc18', id: 'chart_36', title: 'Hotel x Department Matrix', note: 'Cross-hotel department matrix for fast benchmarking and imbalance detection. Benchmark: Good when cross-hotel variance is balanced; Bad when one department dominates across multiple hotels.', formula: 'Matrix Cell = COUNT(incident_case) GROUP BY hotel_code, department' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -358,6 +366,18 @@ function buildChainOptions(id: string, entries: ChainEntry[]): Highcharts.Option
 function buildCorpImOptions(id: string, entries: ChainEntry[], worldMapData?: Record<string, unknown> | null): Highcharts.Options | undefined {
   if (entries.length < 2) return undefined;
   const codes = entries.map(e => e.hotel_code);
+  const safePct = (n: number, d: number) => d > 0 ? (n / d) * 100 : 0;
+  const riskScore = (e: ChainEntry) => {
+    const total = Math.max(e.summary.total, 1);
+    const critical = e.summary.severity_map?.Critical ?? 0;
+    const high = e.summary.severity_map?.High ?? 0;
+    const vip = e.summary.vip_total ?? 0;
+    const sla = Object.entries(e.summary.status_map ?? {})
+      .filter(([k]) => /(breach|overdue|timeout|late|sla)/i.test(k))
+      .reduce((s, [, v]) => s + v, 0);
+    const open = e.summary.pending ?? 0;
+    return (critical * 5) + (high * 3) + (vip * 4) + (sla * 3) + (open * 2) + total * 0.01;
+  };
   const statusKeys = Array.from(
     new Set(entries.flatMap((e) => Object.keys(e.summary.status_map ?? {}))),
   ).sort((a, b) => {
@@ -686,6 +706,200 @@ function buildCorpImOptions(id: string, entries: ChainEntry[], worldMapData?: Re
     });
   }
 
+  if (id === 'chart_28') {
+    const metrics = ['Risk Score', 'Critical %', 'VIP Cases', 'SLA Breach %', 'Trend %'];
+    const byHotel = entries.map((e) => {
+      const t = Math.max(e.summary.total, 1);
+      const criticalPct = safePct(e.summary.severity_map?.Critical ?? 0, t);
+      const breach = Object.entries(e.summary.status_map ?? {})
+        .filter(([k]) => /(breach|overdue|timeout|late|sla)/i.test(k))
+        .reduce((s, [, v]) => s + v, 0);
+      const slaPct = safePct(breach, t);
+      const weeks = Object.entries(e.summary.week_map ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
+      const half = Math.floor(weeks.length / 2);
+      const w1 = half > 0 ? weeks.slice(0, half).reduce((s, v) => s + v, 0) / half : 0;
+      const w2 = weeks.length - half > 0 ? weeks.slice(half).reduce((s, v) => s + v, 0) / (weeks.length - half) : 0;
+      const trend = w1 > 0 ? ((w2 - w1) / w1) * 100 : 0;
+      return [riskScore(e), criticalPct, e.summary.vip_total, slaPct, trend];
+    });
+    const data: Array<[number, number, number]> = [];
+    metrics.forEach((_, r) => entries.forEach((_, c) => data.push([c, r, byHotel[c][r] ?? 0])));
+    return hcOpts({
+      chart: { type: 'heatmap' },
+      xAxis: { categories: entries.map((e) => e.hotel_code) },
+      yAxis: { categories: metrics, title: { text: null }, reversed: true },
+      colorAxis: { min: 0, minColor: '#E6F4F1', maxColor: '#C55A10' },
+      series: [{ type: 'heatmap', name: 'Scorecard', data, dataLabels: { enabled: true, formatter: function (this: { point?: { value?: number } }) { return `${r1(Number(this.point?.value ?? 0))}`; } } }],
+      tooltip: { pointFormatter: function (this: Highcharts.Point) { const v = Number((this as unknown as { value?: number }).value ?? 0); return `<b>${metrics[this.y ?? 0]}</b><br/>${entries[this.x ?? 0].hotel_code}: ${r1(v)}`; } },
+    });
+  }
+
+  if (id === 'chart_29') {
+    const ranked = [...entries]
+      .map((e) => ({ hotel: e.hotel_code, risk: riskScore(e) }))
+      .sort((a, b) => b.risk - a.risk);
+    return hcOpts({
+      chart: { type: 'bar' },
+      xAxis: { categories: ranked.map((r) => r.hotel) },
+      yAxis: { min: 0, title: { text: 'Risk Score' } },
+      series: [{ type: 'bar', name: 'Risk Score', data: ranked.map((r) => r.risk) }],
+      plotOptions: { bar: { dataLabels: { enabled: true, formatter: function (this: { point?: { y?: number } }) { return `${r1(Number(this.point?.y ?? 0))}`; } } } },
+    });
+  }
+
+  if (id === 'chart_30') {
+    return hcOpts({
+      chart: { type: 'bubble' },
+      xAxis: { title: { text: 'Incident Volume' } },
+      yAxis: { title: { text: 'Avg Severity Score' }, min: 0, max: 4 },
+      series: [{
+        type: 'bubble',
+        name: 'Hotels',
+        data: entries.map((e) => ({
+          name: e.hotel_code,
+          x: e.summary.total,
+          y: e.summary.total > 0 ? e.summary.severity_sum / e.summary.total : 0,
+          z: e.summary.vip_total,
+          custom: { cc: e.country_code },
+        })),
+      }],
+      tooltip: { pointFormatter: function () { const p = this as unknown as { name?: string; x?: number; y?: number; z?: number; custom?: { cc?: string } }; return `<b>${p.name}</b> (${p.custom?.cc ?? '-'})<br/>Volume: ${p.x}<br/>Avg Severity: ${r2(Number(p.y ?? 0))}<br/>VIP: ${p.z}`; } },
+    });
+  }
+
+  if (id === 'chart_31') {
+    const byRegion = new Map<string, { critical: number; vip: number; sla: number; trend: number; count: number }>();
+    for (const e of entries) {
+      const key = e.country_code || 'UNK';
+      const cur = byRegion.get(key) ?? { critical: 0, vip: 0, sla: 0, trend: 0, count: 0 };
+      const t = Math.max(e.summary.total, 1);
+      cur.critical += safePct(e.summary.severity_map?.Critical ?? 0, t);
+      cur.vip += safePct(e.summary.vip_total ?? 0, t);
+      const breach = Object.entries(e.summary.status_map ?? {}).filter(([k]) => /(breach|overdue|timeout|late|sla)/i.test(k)).reduce((s, [, v]) => s + v, 0);
+      cur.sla += safePct(breach, t);
+      const weeks = Object.values(e.summary.week_map ?? {});
+      cur.trend += weeks.length >= 2 ? weeks[weeks.length - 1] - weeks[0] : 0;
+      cur.count += 1;
+      byRegion.set(key, cur);
+    }
+    const regions = Array.from(byRegion.keys()).sort();
+    const metrics = ['Critical %', 'VIP %', 'SLA Breach %', 'Trend'];
+    const data: Array<[number, number, number]> = [];
+    regions.forEach((rg, x) => {
+      const v = byRegion.get(rg)!;
+      const arr = [v.critical / v.count, v.vip / v.count, v.sla / v.count, v.trend / v.count];
+      arr.forEach((n, y) => data.push([x, y, n]));
+    });
+    return hcOpts({
+      chart: { type: 'heatmap' },
+      xAxis: { categories: regions },
+      yAxis: { categories: metrics, title: { text: null }, reversed: true },
+      colorAxis: { min: 0, minColor: '#E6F4F1', maxColor: '#C55A10' },
+      series: [{ type: 'heatmap', name: 'Regional Risk', data, dataLabels: { enabled: true, formatter: function (this: { point?: { value?: number } }) { return `${r1(Number(this.point?.value ?? 0))}`; } } }],
+    });
+  }
+
+  if (id === 'chart_32') {
+    const weekAgg: Record<string, number> = {};
+    for (const e of entries) for (const [w, v] of Object.entries(e.summary.week_map ?? {})) weekAgg[w] = (weekAgg[w] ?? 0) + v;
+    let weeks = Object.keys(weekAgg).sort();
+    let raw = weeks.map((w) => weekAgg[w] ?? 0);
+    // Fallback when weekly buckets are not present in legacy corp summaries.
+    if (weeks.length === 0) {
+      weeks = entries.map((e) => e.hotel_code);
+      raw = entries.map((e) => e.summary.total);
+    }
+    const ma = raw.map((_, i) => {
+      const s = Math.max(0, i - 3);
+      const slice = raw.slice(s, i + 1);
+      return slice.reduce((a, b) => a + b, 0) / Math.max(slice.length, 1);
+    });
+    return hcOpts({
+      chart: { type: 'line' },
+      xAxis: { categories: weeks },
+      yAxis: { title: { text: 'Incidents' }, min: 0 },
+      series: [
+        { type: 'line', name: 'Weekly Incidents', data: raw, color: '#0E7470' },
+        { type: 'line', name: 'Moving Average', data: ma.map((v) => r1(v)), color: '#C55A10', dashStyle: 'ShortDot' },
+      ],
+    });
+  }
+
+  if (id === 'chart_33' || id === 'chart_36') {
+    const depts = Array.from(new Set(entries.flatMap((e) => Object.keys(e.summary.dept_map ?? {}))))
+      .sort((a, b) => (entries.reduce((s, e) => s + (e.summary.dept_map[b] ?? 0), 0)) - (entries.reduce((s, e) => s + (e.summary.dept_map[a] ?? 0), 0)))
+      .slice(0, 10);
+    const data: Array<[number, number, number]> = [];
+    entries.forEach((e, x) => depts.forEach((d, y) => data.push([x, y, e.summary.dept_map[d] ?? 0])));
+    return hcOpts({
+      chart: { type: 'heatmap' },
+      xAxis: { categories: entries.map((e) => e.hotel_code) },
+      yAxis: { categories: depts, title: { text: null }, reversed: true },
+      colorAxis: { min: 0, minColor: '#E6F4F1', maxColor: '#0E7470' },
+      series: [{ type: 'heatmap', name: id === 'chart_33' ? 'Department Risk' : 'Department Cases', data, dataLabels: { enabled: true } }],
+    });
+  }
+
+  if (id === 'chart_34') {
+    const root: Record<string, number> = {};
+    for (const e of entries) for (const [k, v] of Object.entries(e.summary.item_map ?? e.summary.category_map ?? {})) root[k] = (root[k] ?? 0) + v;
+    const top = Object.entries(root).sort(([, a], [, b]) => b - a).slice(0, 10);
+    const cats = top.map(([k]) => k);
+    const vals = top.map(([, v]) => v);
+    const total = vals.reduce((s, v) => s + v, 0);
+    let running = 0;
+    const cum = vals.map((v) => { running += v; return total > 0 ? (running / total) * 100 : 0; });
+    return hcOpts({
+      chart: { zoomType: 'xy' },
+      xAxis: [{ categories: cats }],
+      yAxis: [{ title: { text: 'Incidents' } }, { title: { text: 'Cumulative %' }, opposite: true, max: 100 }],
+      series: [
+        { type: 'column', name: 'Incidents', data: vals, color: '#0E7470' },
+        { type: 'line', name: 'Cumulative %', data: cum.map((v) => r1(v)), yAxis: 1, color: '#C55A10' },
+      ],
+    });
+  }
+
+  if (id === 'chart_35') {
+    const criticalOpen = entries.map((e) => {
+      const critical = e.summary.severity_map?.Critical ?? 0;
+      const pending = e.summary.pending ?? 0;
+      return { hotel: e.hotel_code, count: Math.min(critical, pending) };
+    });
+    return hcOpts({
+      chart: { type: 'bar' },
+      xAxis: { categories: criticalOpen.map((r) => r.hotel) },
+      yAxis: { min: 0, title: { text: 'Open Critical (Aging proxy)' } },
+      series: [{ type: 'bar', name: 'Open Critical', data: criticalOpen.map((r) => r.count), color: '#C55A10' }],
+      plotOptions: { bar: { dataLabels: { enabled: true } } },
+    });
+  }
+
+  if (id === 'chart_37') {
+    const target = 5;
+    const rows = entries.map((e) => {
+      const breach = Object.entries(e.summary.status_map ?? {}).filter(([k]) => /(breach|overdue|timeout|late|sla)/i.test(k)).reduce((s, [, v]) => s + v, 0);
+      const rate = safePct(breach, Math.max(e.summary.total, 1));
+      return { hotel: e.hotel_code, rate };
+    }).sort((a, b) => b.rate - a.rate);
+    const hasAnyBreach = rows.some((r) => r.rate > 0);
+    const finalRows = hasAnyBreach
+      ? rows
+      : entries
+          .map((e) => ({
+            hotel: e.hotel_code,
+            rate: safePct(e.summary.pending ?? 0, Math.max(e.summary.total, 1)),
+          }))
+          .sort((a, b) => b.rate - a.rate);
+    return hcOpts({
+      chart: { type: 'bar' },
+      xAxis: { categories: finalRows.map((r) => r.hotel) },
+      yAxis: { min: 0, title: { text: 'SLA Breach Rate %' }, plotLines: [{ value: target, color: '#0E7470', width: 2, dashStyle: 'ShortDash', label: { text: `Target ${target}%` } }] },
+      series: [{ type: 'bar', name: hasAnyBreach ? 'Breach Rate %' : 'Pending Proxy %', data: finalRows.map((r) => r1(r.rate)), color: '#C55A10' }],
+      plotOptions: { bar: { minPointLength: 6, dataLabels: { enabled: true, format: '{point.y:.1f}%' } } },
+    });
+  }
+
   return undefined;
 }
 
@@ -774,11 +988,111 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
     isJo ? data.kpis : (fd ? recomputeKpis(data.kpis, fd) : data.kpis),
   [fd, data.kpis, isJo]);
 
-  const localizedKpis = useMemo(() => kpis.map((k) => ({
-    ...k,
-    label: t(`${isJo ? 'kpi_labels_jo' : 'kpi_labels_im'}.${k.id}`, k.label),
-    note: t(`${isJo ? 'kpi_notes_jo' : 'kpi_notes_im'}.${k.id}`, k.note),
-  })), [kpis, isJo, t]);
+  const corpImKpis = useMemo<KpiDef[] | null>(() => {
+    if (!isCorp || isJo) return null;
+
+    const total = data.summary.total ?? 0;
+    const completed = data.summary.completed ?? 0;
+    const pending = data.summary.pending ?? 0;
+    const vipTotal = data.summary.vip_total ?? 0;
+    const severitySum = data.summary.severity_sum ?? 0;
+    const repeatCount = data.summary.repeat_count ?? 0;
+    const critical = data.summary.severity_map?.Critical ?? 0;
+    const closureRate = total > 0 ? (completed / total) * 100 : 0;
+    const vipExposure = total > 0 ? (vipTotal / total) * 100 : 0;
+    const criticalRate = total > 0 ? (critical / total) * 100 : 0;
+    const repeatRate = total > 0 ? (repeatCount / total) * 100 : 0;
+
+    const statusEntries = Object.entries(data.summary.status_map ?? {});
+    const slaBreachCount = statusEntries
+      .filter(([k]) => /(breach|overdue|timeout|late|sla)/i.test(k))
+      .reduce((s, [, v]) => s + v, 0);
+    const slaBreachRate = total > 0 ? (slaBreachCount / total) * 100 : 0;
+
+    const avgSeverity = total > 0 ? severitySum / total : 0;
+    const riskRaw = ((avgSeverity / 4) * 0.45) + ((vipExposure / 100) * 0.30) + ((slaBreachRate / 100) * 0.25);
+    const corpRiskScore = Math.max(0, 100 - riskRaw * 100);
+
+    const benchmarkPerHotel = chainEntries.map((e) => {
+      const t = e.summary.total || 0;
+      const sevAvg = t > 0 ? (e.summary.severity_sum / t) : 0;
+      const vipRate = t > 0 ? (e.summary.vip_total / t) : 0;
+      const st = Object.entries(e.summary.status_map ?? {});
+      const breach = st
+        .filter(([k]) => /(breach|overdue|timeout|late|sla)/i.test(k))
+        .reduce((s, [, v]) => s + v, 0);
+      const breachRate = t > 0 ? (breach / t) : 0;
+      return Math.max(0, 100 - (((sevAvg / 4) * 40) + (vipRate * 30) + (breachRate * 30)));
+    });
+    const hotelBenchmark = benchmarkPerHotel.length > 0
+      ? benchmarkPerHotel.reduce((s, v) => s + v, 0) / benchmarkPerHotel.length
+      : corpRiskScore;
+
+    const weekMap = fd?.weekMap ?? data.summary.week_map ?? {};
+    const weeks = Object.keys(weekMap).sort();
+    let trendMomentum = 0;
+    let trendAvailable = false;
+    if (weeks.length >= 4) {
+      const vals = weeks.map((w) => weekMap[w] ?? 0);
+      const mid = Math.floor(vals.length / 2);
+      const firstAvg = vals.slice(0, mid).reduce((s, v) => s + v, 0) / Math.max(mid, 1);
+      const secondAvg = vals.slice(mid).reduce((s, v) => s + v, 0) / Math.max(vals.length - mid, 1);
+      trendMomentum = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
+      trendAvailable = true;
+    }
+
+    const top5Category = Object.values(data.summary.category_map ?? {})
+      .sort((a, b) => b - a)
+      .slice(0, 5)
+      .reduce((s, v) => s + v, 0);
+    const rootCauseConcentration = total > 0 ? (top5Category / total) * 100 : 0;
+
+    const hasOpenCriticalAging = false;
+
+    const make = (
+      id: string,
+      label: string,
+      value: number | null,
+      fmt: KpiDef['fmt'],
+      note: string,
+      formula: string,
+      available = true,
+      unit?: string,
+    ): KpiDef => ({
+      id,
+      label,
+      value,
+      unit: unit ?? '',
+      fmt,
+      note,
+      formula,
+      available,
+    });
+
+    return [
+      make('kpi_09', 'Total Incident Volume', total, 'integer', 'Total number of incidents in the selected period. Benchmark: Good <= 800, Watch 801-1200, Bad > 1200 (thresholds should be tuned by property scale).', 'COUNT(All Incidents)', true, 'cases'),
+      make('kpi_01', 'Corporate Risk Score', r1(corpRiskScore), 'pct1', 'Composite corporate health index balancing severity, VIP exposure, and SLA breach risk. Benchmark: Good >= 85, Watch 70-84.9, Bad < 70.', '100 - [ (Avg Severity/4 * 45) + (VIP Exposure * 30) + (SLA Breach Rate * 25) ]'),
+      make('kpi_02', 'Critical Incident Rate', r1(criticalRate), 'pct1', 'Share of incidents classified as Critical. Benchmark: Good <= 1%, Watch 1-2%, Bad > 2%.', 'Critical Cases / Total Cases * 100'),
+      make('kpi_03', 'Hotel Benchmark Index', r1(hotelBenchmark), 'pct1', 'Average cross-hotel benchmark index for fair chain-level comparison. Benchmark: Good >= 85, Watch 75-84.9, Bad < 75.', 'AVG per-hotel [100 - (Severity*40 + VIP*30 + SLA*30)]'),
+      make('kpi_04', 'VIP Incident Exposure', r1(vipExposure), 'pct1', 'Portion of incidents involving VIP guests; tracks premium-service risk. Benchmark: Good <= 6%, Watch 6-10%, Bad > 10%.', 'VIP Cases / Total Cases * 100'),
+      make('kpi_05', 'SLA Breach Rate', r1(slaBreachRate), 'pct1', 'Operational discipline KPI based on breach/late/overdue-like statuses. Benchmark: Good <= 3%, Watch 3-5%, Bad > 5%.', 'SLA Breach Cases / Total Cases * 100'),
+      make('kpi_06', 'Closure Rate', r1(closureRate), 'pct1', 'Percentage of incidents that reached completed/closed state. Benchmark: Good >= 95%, Watch 90-94.9%, Bad < 90%.', 'Completed Cases / Total Cases * 100'),
+      make('kpi_07', 'VIP Closure Rate', vipTotal > 0 ? r1((data.summary.vip_completed / vipTotal) * 100) : null, 'pct1', 'Resolution efficiency for VIP incidents. Benchmark: Good >= 95%, Watch 90-94.9%, Bad < 90%.', 'VIP Completed Cases / VIP Cases * 100', vipTotal > 0),
+      make('kpi_08', 'Repeat Guest Complaint Rate', r1(repeatRate), 'pct1', 'Recurrence pressure indicator tied to loyalty/retention risk. Benchmark: Good <= 15%, Watch 15-25%, Bad > 25%.', 'Repeat Complaint Cases / Total Cases * 100'),
+      make('kpi_10', 'Root Cause Concentration', r1(rootCauseConcentration), 'pct1', 'Concentration of incident volume in top 5 categories; higher can indicate systemic concentration risk. Benchmark: Good <= 45%, Watch 45-60%, Bad > 60%.', 'Top 5 Incident Categories Cases / Total Cases * 100'),
+    ];
+  }, [isCorp, isJo, data.summary, data.raw_daily, chainEntries, fd?.weekMap]);
+
+  const localizedKpis = useMemo(() => {
+    // Corp IM uses dedicated KPI names/definitions and should not be remapped
+    // by legacy kpi_01..kpi_10 i18n labels.
+    if (corpImKpis) return corpImKpis;
+    return kpis.map((k) => ({
+      ...k,
+      label: t(`${isJo ? 'kpi_labels_jo' : 'kpi_labels_im'}.${k.id}`, k.label),
+      note: t(`${isJo ? 'kpi_notes_jo' : 'kpi_notes_im'}.${k.id}`, k.note),
+    }));
+  }, [corpImKpis, kpis, isJo, t]);
 
   const localizedEac = useMemo(() => data.eac.map((c) => ({
     ...c,
@@ -1053,79 +1367,78 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
           </section>
         )}
 
-        <section>
-          <SectionHead label={t('dashboard_ui.section_charts', 'Executive Analysis Charts')} dark={dark} />
-          <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {reorderedEac.map((def, i) => {
-              const { override, fullPeriod } = chartOpts(def);
-              return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
-            })}
-          </div>
-        </section>
+        {!isCorp && (
+          <>
+            <section>
+              <SectionHead label={t('dashboard_ui.section_charts', 'Executive Analysis Charts')} dark={dark} />
+              <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {reorderedEac.map((def, i) => {
+                  const { override, fullPeriod } = chartOpts(def);
+                  return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
+                })}
+              </div>
+            </section>
 
-        {/* ── Operational ──────────────────────────────────────────────────── */}
-        <section>
-          <SectionHead label={isJo ? t('dashboard_ui.operational_jo', 'Operational Detail — JO View') : t('dashboard_ui.operational_im', 'Operational Detail — GM View')} dark={dark} />
-          <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {reorderedOperational.map((def, i) => {
-              const { override, fullPeriod } = chartOpts(def);
-              return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
-            })}
-          </div>
-        </section>
+            <section>
+              <SectionHead label={isJo ? t('dashboard_ui.operational_jo', 'Operational Detail — JO View') : t('dashboard_ui.operational_im', 'Operational Detail — GM View')} dark={dark} />
+              <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {reorderedOperational.map((def, i) => {
+                  const { override, fullPeriod } = chartOpts(def);
+                  return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
+                })}
+              </div>
+            </section>
 
-        {/* ── Chain Comparison ──────────────────────────────────────────────── */}
-        {(!isJo || isCorp) && (
-        <section>
-          <SectionHead
-            label={hasChain ? `${t('dashboard_ui.chain_comparison', 'Chain Comparison')} — ${chainEntries.length} ${t('dashboard_ui.hotels', 'Hotels')}` : t('dashboard_ui.chain_comparison', 'Chain Comparison')}
-            dark={dark}
-          />
-          {!hasChain && (
-            <p className="mt-1.5 mb-4 font-mono" style={{ fontSize: '0.62rem', color: naText }}>
-              {t('dashboard_ui.benchmarking_hint', 'Upload CSVs for other hotels in the same chain to enable cross-hotel benchmarking.')}
-            </p>
-          )}
-          <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {comparisonCharts.map((def, i) => {
-              const { override, fullPeriod } = chartOpts(def);
-              return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
-            })}
-          </div>
-        </section>
-        )}
-
-        {/* ── Time / Volume detail ──────────────────────────────────────────── */}
-        {!isJo && hourlyChart && (
-          <section>
-            <SectionHead label={t('dashboard_ui.time_patterns', 'Time Patterns')} dark={dark} />
-            <div className="chart-grid mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
-              <HcChart
-                key={hourlyChart.id}
-                def={hourlyChart}
+            {(!isJo || isCorp) && (
+            <section>
+              <SectionHead
+                label={hasChain ? `${t('dashboard_ui.chain_comparison', 'Chain Comparison')} — ${chainEntries.length} ${t('dashboard_ui.hotels', 'Hotels')}` : t('dashboard_ui.chain_comparison', 'Chain Comparison')}
                 dark={dark}
-                fullPeriod={false}
-                index={nextChartIndex()}
               />
-            </div>
-          </section>
+              {!hasChain && (
+                <p className="mt-1.5 mb-4 font-mono" style={{ fontSize: '0.62rem', color: naText }}>
+                  {t('dashboard_ui.benchmarking_hint', 'Upload CSVs for other hotels in the same chain to enable cross-hotel benchmarking.')}
+                </p>
+              )}
+              <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {comparisonCharts.map((def, i) => {
+                  const { override, fullPeriod } = chartOpts(def);
+                  return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
+                })}
+              </div>
+            </section>
+            )}
+
+            {!isJo && hourlyChart && (
+              <section>
+                <SectionHead label={t('dashboard_ui.time_patterns', 'Time Patterns')} dark={dark} />
+                <div className="chart-grid mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <HcChart
+                    key={hourlyChart.id}
+                    def={hourlyChart}
+                    dark={dark}
+                    fullPeriod={false}
+                    index={nextChartIndex()}
+                  />
+                </div>
+              </section>
+            )}
+
+            {!isJo && gaugeCharts.length > 0 && (
+              <section>
+                <SectionHead label={t('dashboard_ui.performance_gauges', 'Performance Gauges')} dark={dark} />
+                <div className="chart-grid mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {gaugeCharts.map((def, i) => {
+                    const { override, fullPeriod } = chartOpts(def);
+                    return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
+                  })}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
-        {/* ── Gauges ───────────────────────────────────────────────────────── */}
-        {!isJo && gaugeCharts.length > 0 && (
-          <section>
-            <SectionHead label={t('dashboard_ui.performance_gauges', 'Performance Gauges')} dark={dark} />
-            <div className="chart-grid mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {gaugeCharts.map((def, i) => {
-                const { override, fullPeriod } = chartOpts(def);
-                return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* ── Corp benchmark table ─────────────────────────────────────── */}
-        {isCorp && !isJo && corpBenchmarkRows.length > 0 && (
+        {!isCorp && !isJo && corpBenchmarkRows.length > 0 && (
           <section>
             <SectionHead label={'Benchmark by Hotel Table'} dark={dark} />
             <div
