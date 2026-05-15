@@ -18,8 +18,8 @@
     "brand_title": "FCS1 Dashboard",
     "section_workspace": "Workspace",
     "menu_upload_csv": "Upload CSV",
-    "label_im_dashboard": "IM Dashboard",
-    "label_jo_dashboard": "JO Dashboard",
+    "label_im_dashboard": "IM",
+    "label_jo_dashboard": "JO",
     "reset_database": "Reset Database",
     "status_live": "Status Live",
     "loading": "Loading...",
@@ -244,4 +244,3 @@
     "quantity_short": "qty"
   }
 }
-

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Upload, BarChart2, LineChart, X, Database, Pin, PinOff, ChevronRight, PanelLeftClose, PanelLeftOpen, Hourglass } from 'lucide-react';
+import { Upload, BarChart2, LineChart, PieChart, X, Database, Pin, PinOff, ChevronRight, PanelLeftClose, PanelLeftOpen, Hourglass } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { NavChain } from '@/app/api/nav/dashboards/route';
 import { APP_VERSION } from '@/lib/version';
@@ -385,7 +385,9 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
                               T={t}
                               collapsed={collapsed}
                             >
-                              {item.module === 'jo' ? (
+                              {isCorp ? (
+                                <PieChart size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
+                              ) : item.module === 'jo' ? (
                                 <BarChart2 size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
                               ) : (
                                 <LineChart size={14} strokeWidth={active ? 2.5 : 2} className="shrink-0" />
@@ -393,15 +395,15 @@ export function AppSidebar({ open, onClose, pinned, onTogglePin }: AppSidebarPro
                               {!collapsed && (
                                 <span className="truncate">
                                   {isCorp ? (
-                                    <span style={{ fontWeight: 600 }}>Corp · {item.module.toUpperCase()}</span>
+                                    <span style={{ fontWeight: 700, color: active ? '#F4C27A' : '#DDA15E' }}>
+                                      Corp · {item.module.toUpperCase()}
+                                    </span>
                                   ) : (
                                     <>
                                       <span style={{ fontWeight: 600 }}>{item.hotel_code}</span>
                                       <span style={{ opacity: 0.55 }}>
                                         {' · '}
-                                        {item.module === 'jo'
-                                          ? tr('sidebar.label_jo_dashboard', item.label)
-                                          : tr('sidebar.label_im_dashboard', item.label)}
+                                        {item.module.toUpperCase()}
                                       </span>
                                     </>
                                   )}
