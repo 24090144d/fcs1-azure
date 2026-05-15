@@ -15,6 +15,18 @@ const HcChart = dynamic(() => import('@/components/dashboard/HcChart').then(m =>
 const CHAIN_CHARTS = new Set(['chart_12', 'chart_13', 'chart_14', 'chart_15', 'chart_16', 'chart_17', 'chart_18', 'chart_20']);
 const GAUGE_CHARTS = new Set(['eac_06', 'chart_22', 'chart_23', 'chart_24']);
 const CORP_IM_TOP_IDS = new Set(['chart_18', 'chart_19', 'chart_20', 'chart_21', 'chart_22', 'chart_23', 'chart_24', 'chart_25', 'chart_26', 'chart_27']);
+const CORP_IM_TOP_MAP: Array<{ code: string; id: string; title: string; note: string; formula: string }> = [
+  { code: 'imc01', id: 'chart_22', title: 'Hotel Incident -> Top 10 Incident Item', note: 'Donut drilldown from hotel incident volume to top 10 incident items (incident item name).', formula: 'COUNT by hotel -> top 10 incident_item_name counts per hotel' },
+  { code: 'imc02', id: 'chart_18', title: 'Total Incident vs Status by Hotel', note: 'Stacked bar by hotel status mix.', formula: 'SUM(status) by hotel' },
+  { code: 'imc03', id: 'chart_19', title: 'VIP Closure Rate vs VIP Incident by Hotel', note: 'Bar + line dual-axis comparison.', formula: 'VIP total and VIP completed/VIP total' },
+  { code: 'imc04', id: 'chart_26', title: 'Hotel Incident -> Top 10 Incident Category', note: 'Donut drilldown from hotel incident volume to top 10 incident categories.', formula: 'COUNT by hotel -> top 10 category counts per hotel' },
+  { code: 'imc05', id: 'chart_21', title: 'Chain — Repeat Incident Rate by Hotel', note: '', formula: '' },
+  { code: 'imc06', id: 'chart_23', title: 'Worldmap Incident by Hotel', note: 'Country detected from CountryCode. Labels/tooltips show per-country hotel incident counts (comma-separated when multiple hotels).', formula: 'SUM(incidents) by country_code for color; display hotel_code + incident_count list' },
+  { code: 'imc07', id: 'chart_24', title: 'Hotel -> Department', note: 'Column drilldown from hotel incident volume to department incident volume, with data labels.', formula: 'COUNT by hotel -> COUNT by department' },
+  { code: 'imc08', id: 'chart_25', title: 'Hotel -> Source of Complaint', note: 'Donut drilldown from hotel incident volume to source-of-complaint distribution.', formula: 'COUNT by hotel -> COUNT by source_of_complaint' },
+  { code: 'imc09', id: 'chart_20', title: 'VIP vs Non-VIP by Hotel', note: 'Vertical stacked bar by hotel.', formula: 'VIP count and (Total - VIP) by hotel' },
+  { code: 'imc10', id: 'chart_27', title: 'Hotel -> Booking Source', note: 'Donut drilldown from hotel incident volume to booking source distribution.', formula: 'COUNT by hotel -> COUNT by booking_source' },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -343,7 +355,7 @@ function buildChainOptions(id: string, entries: ChainEntry[]): Highcharts.Option
   }
 }
 
-function buildCorpImOptions(id: string, entries: ChainEntry[]): Highcharts.Options | undefined {
+function buildCorpImOptions(id: string, entries: ChainEntry[], worldMapData?: Record<string, unknown> | null): Highcharts.Options | undefined {
   if (entries.length < 2) return undefined;
   const codes = entries.map(e => e.hotel_code);
   const statusKeys = Array.from(
@@ -442,7 +454,7 @@ function buildCorpImOptions(id: string, entries: ChainEntry[]): Highcharts.Optio
     return hcOpts({
       chart: { type: 'pie' },
       series: [{
-        name: 'Incidents',
+        name: 'Hotel Incidents',
         type: 'pie',
         innerSize: '45%',
         data: topLevel,
@@ -451,7 +463,77 @@ function buildCorpImOptions(id: string, entries: ChainEntry[]): Highcharts.Optio
       tooltip: { pointFormat: '<b>{point.y}</b> incidents' },
     });
   }
-  if (id === 'chart_23') return buildChainOptions('chart_13', entries); // Closure rate
+  if (id === 'chart_23') {
+    if (!worldMapData) return undefined;
+    const countryAgg = new Map<string, { total: number; hotels: string[] }>();
+    for (const e of entries) {
+      const code = String(e.country_code ?? '').trim().toLowerCase();
+      if (!code) continue;
+      const prev = countryAgg.get(code) ?? { total: 0, hotels: [] };
+      prev.total += e.summary.total;
+      prev.hotels.push(`${e.hotel_code} ${e.summary.total}`);
+      countryAgg.set(code, prev);
+    }
+    const mapDataPoints = Array.from(countryAgg.entries()).map(([code, agg]) => ({
+      'hc-key': code,
+      value: agg.total,
+      labelrank: agg.total,
+      custom: {
+        hotels: agg.hotels.join(', '),
+        countryCode: code.toUpperCase(),
+      },
+    }));
+    return hcOpts({
+      chart: { type: 'map' },
+      mapNavigation: { enabled: true },
+      colorAxis: {
+        min: 0,
+        minColor: '#E6F4F1',
+        maxColor: '#0E7470',
+      },
+      series: [{
+        type: 'map',
+        name: 'Hotel Incidents',
+        mapData: worldMapData,
+        data: mapDataPoints.map((p) => ({
+          code: (p.custom.countryCode ?? '').toUpperCase(),
+          value: p.value,
+          custom: p.custom,
+        })),
+        joinBy: ['iso-a2', 'code'],
+        borderColor: '#B9A88A',
+        nullColor: '#F4EEE4',
+        states: { hover: { color: '#C55A10' } },
+        dataLabels: {
+          enabled: true,
+          allowOverlap: false,
+          crop: false,
+          overflow: 'allow',
+          padding: 2,
+          useHTML: true,
+          formatter: function (this: { point?: { options?: { custom?: { hotels?: string } }; series?: { chart?: { fullscreen?: { isOpen?: boolean } } } } }) {
+            const hotels = this.point?.options?.custom?.hotels ?? '';
+            const isFullscreen = this.point?.series?.chart?.fullscreen?.isOpen === true;
+            const size = isFullscreen ? 16 : 8;
+            return `<span style="font-size:${size}px;line-height:1.2;font-weight:700">${hotels}</span>`;
+          },
+          style: {
+            fontSize: '8px',
+            fontWeight: '600',
+            textOutline: 'none',
+          },
+        },
+      } as unknown as Highcharts.SeriesOptionsType],
+      tooltip: {
+        useHTML: true,
+        pointFormatter: function (this: Highcharts.Point) {
+          const hotels = (this.options as { custom?: { hotels?: string } }).custom?.hotels ?? '';
+          const cc = (this.options as { custom?: { countryCode?: string } }).custom?.countryCode ?? this.name;
+          return `<b>${cc}</b><br/>Hotels: ${hotels || '-'}`;
+        },
+      },
+    });
+  }
   if (id === 'chart_24') {
     const topLevel = entries.map((e) => ({
       name: e.hotel_code,
@@ -644,6 +726,7 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
     ? `${data.meta.hotel_name} · ${data.meta.hotel_code ?? ''} · ${moduleLabel}${data.meta.country_code ? ` (${data.meta.country_code})` : ''}`
     : data.meta.source_name;
   const [dark,     setDark]     = useState(false);
+  const [worldMapData, setWorldMapData] = useState<Record<string, unknown> | null>(null);
   const [dateFrom, setDateFrom] = useState(data.meta.date_range.min ?? '');
   const [dateTo,   setDateTo]   = useState(data.meta.date_range.max ?? '');
   const [filtered, setFiltered] = useState(false);
@@ -652,6 +735,16 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
+
+  useEffect(() => {
+    if (!isCorp || isJo) return;
+    let cancelled = false;
+    fetch('https://code.highcharts.com/mapdata/custom/world.geo.json')
+      .then((r) => r.json())
+      .then((json) => { if (!cancelled) setWorldMapData(json as Record<string, unknown>); })
+      .catch(() => { if (!cancelled) setWorldMapData(null); });
+    return () => { cancelled = true; };
+  }, [isCorp, isJo]);
 
   // Reflow Highcharts before print so SVGs resize to the mm-based CSS dimensions
   useEffect(() => {
@@ -701,23 +794,19 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
 
   const corpImTopCharts = useMemo<ChartDef[]>(() => {
     if (isJo || !isCorp) return [];
-    return [
-      { id: 'chart_22', title: 'Hotel Incident -> Top 10 Incident Item', options: {}, note: 'Donut drilldown from hotel incident volume to top 10 incident items (incident item name).', formula: 'COUNT by hotel -> top 10 incident_item_name counts per hotel', filterable: false },
-      { id: 'chart_18', title: 'Total Incident vs Status by Hotel', options: {}, note: 'Stacked bar by hotel status mix.', formula: 'SUM(status) by hotel', filterable: false },
-      { id: 'chart_19', title: 'VIP Closure Rate vs VIP Incident by Hotel', options: {}, note: 'Bar + line dual-axis comparison.', formula: 'VIP total and VIP completed/VIP total', filterable: false },
-      { id: 'chart_26', title: 'Hotel Incident -> Top 10 Incident Category', options: {}, note: 'Donut drilldown from hotel incident volume to top 10 incident categories.', formula: 'COUNT by hotel -> top 10 category counts per hotel', filterable: false },
-      { id: 'chart_21', title: 'Chain — Repeat Incident Rate by Hotel', options: {}, note: '', formula: '', filterable: false },
-      { id: 'chart_23', title: 'Chain — Closure Rate by Hotel', options: {}, note: '', formula: '', filterable: false },
-      { id: 'chart_24', title: 'Hotel -> Department', options: {}, note: 'Column drilldown from hotel incident volume to department incident volume, with data labels.', formula: 'COUNT by hotel -> COUNT by department', filterable: false },
-      { id: 'chart_25', title: 'Hotel -> Source of Complaint', options: {}, note: 'Donut drilldown from hotel incident volume to source-of-complaint distribution.', formula: 'COUNT by hotel -> COUNT by source_of_complaint', filterable: false },
-      { id: 'chart_20', title: 'VIP vs Non-VIP by Hotel', options: {}, note: 'Vertical stacked bar by hotel.', formula: 'VIP count and (Total - VIP) by hotel', filterable: false },
-      { id: 'chart_27', title: 'Hotel -> Booking Source', options: {}, note: 'Donut drilldown from hotel incident volume to booking source distribution.', formula: 'COUNT by hotel -> COUNT by booking_source', filterable: false },
-    ];
+    return CORP_IM_TOP_MAP.map((m) => ({
+      id: m.id,
+      title: m.title,
+      options: {},
+      note: m.note,
+      formula: m.formula,
+      filterable: false,
+    }));
   }, [isJo, isCorp]);
 
   function chartOpts(def: ChartDef): { override?: Highcharts.Options; fullPeriod: boolean } {
     if (isCorp && !isJo && CORP_IM_TOP_IDS.has(def.id)) {
-      const corpOpts = buildCorpImOptions(def.id, chainEntries);
+      const corpOpts = buildCorpImOptions(def.id, chainEntries, worldMapData);
       if (corpOpts) return { override: corpOpts, fullPeriod: false };
     }
     if (CHAIN_CHARTS.has(def.id)) {
@@ -800,10 +889,11 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
   });
   const comparisonCharts = isJo ? [] : localizedCharts.filter(c => {
     const n = parseInt(c.id.replace('chart_', ''));
+    if (isCorp && CORP_IM_TOP_IDS.has(c.id)) return false;
     return n >= 12 && n <= 20;
   });
-  const hourlyChart = isJo ? undefined : localizedCharts.find(c => c.id === 'chart_21');
-  const gaugeCharts = isJo ? [] : localizedCharts.filter(c => GAUGE_CHARTS.has(c.id));
+  const hourlyChart = isJo || isCorp ? undefined : localizedCharts.find(c => c.id === 'chart_21');
+  const gaugeCharts = isJo ? [] : localizedCharts.filter(c => GAUGE_CHARTS.has(c.id) && !(isCorp && CORP_IM_TOP_IDS.has(c.id)));
   const hasChain    = chainEntries.length >= 2;
   const corpBenchmarkRows = useMemo(() => {
     if (!isCorp || isJo || chainEntries.length === 0) return [];
@@ -950,14 +1040,14 @@ export function DashboardClient({ data, chainEntries = [] }: { data: ImDashboard
           )}
         </section>
 
-        {/* ── EAC ──────────────────────────────────────────────────────────── */}
+        {/* ── Corp IM top charts ───────────────────────────────────────────── */}
         {isCorp && !isJo && corpImTopCharts.length > 0 && (
           <section>
             <SectionHead label={'Corp Comparison Top 10'} dark={dark} />
             <div className="chart-grid mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {corpImTopCharts.map((def) => {
+              {corpImTopCharts.map((def, idx) => {
                 const { override, fullPeriod } = chartOpts(def);
-                return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={nextChartIndex()} />;
+                return <HcChart key={def.id} def={def} dark={dark} overrideOptions={override} fullPeriod={fullPeriod} index={idx + 1} />;
               })}
             </div>
           </section>
