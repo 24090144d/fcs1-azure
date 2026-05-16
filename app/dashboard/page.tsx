@@ -64,6 +64,7 @@ async function fetchChainEntries(chainCode: string, currentHotelCode: string, mo
         hotel_name:   json.meta.hotel_name,
         country_code: json.meta.country_code ?? '',
         summary:      json.summary,
+        raw_daily:    json.raw_daily ?? [],
       });
     }
     return Array.from(seen.values()).sort((a, b) => a.hotel_code.localeCompare(b.hotel_code));
@@ -236,6 +237,7 @@ async function fetchCorpDashboard(chainCode?: string, moduleCode?: string): Prom
       hotel_name: d.meta.hotel_name,
       country_code: d.meta.country_code ?? '',
       summary: d.summary,
+      raw_daily: d.raw_daily ?? [],
     })).sort((a, b) => a.hotel_code.localeCompare(b.hotel_code));
 
     // Build accurate department->source_of_complaint and department->item maps

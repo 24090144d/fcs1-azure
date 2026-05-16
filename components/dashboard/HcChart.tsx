@@ -14,11 +14,21 @@ if (typeof Highcharts === 'object') {
   const MapMod  = require('highcharts/modules/map');
   const Heatmap = require('highcharts/modules/heatmap');
   const Drill   = require('highcharts/modules/drilldown');
+  const MoreMod = require('highcharts/highcharts-more');
+  const FunnelMod = require('highcharts/modules/funnel');
+  const TreemapMod = require('highcharts/modules/treemap');
+  const SankeyMod = require('highcharts/modules/sankey');
+  const XRangeMod = require('highcharts/modules/xrange');
   if (typeof Exp     === 'function') Exp(Highcharts);
   if (typeof ExpData === 'function') ExpData(Highcharts);
   if (typeof MapMod  === 'function') MapMod(Highcharts);
   if (typeof Heatmap === 'function') Heatmap(Highcharts);
   if (typeof Drill   === 'function') Drill(Highcharts);
+  if (typeof MoreMod === 'function') MoreMod(Highcharts);
+  if (typeof FunnelMod === 'function') FunnelMod(Highcharts);
+  if (typeof TreemapMod === 'function') TreemapMod(Highcharts);
+  if (typeof SankeyMod === 'function') SankeyMod(Highcharts);
+  if (typeof XRangeMod === 'function') XRangeMod(Highcharts);
   /* eslint-enable @typescript-eslint/no-require-imports */
 }
 
@@ -44,7 +54,10 @@ function deepMerge(
 function applyLabelRules(raw: Highcharts.Options): Highcharts.Options {
   const opts = { ...raw };
   const series = (opts.series ?? []) as Highcharts.SeriesOptionsType[];
-  const firstType = String((series[0] as { type?: string } | undefined)?.type ?? '');
+  const seriesType = String((series[0] as { type?: string } | undefined)?.type ?? '');
+  const chartType = String((opts.chart as { type?: string } | undefined)?.type ?? '');
+  const firstType = seriesType || chartType;
+  const labelStyle = { color: '#1A1714', textOutline: 'none', fontWeight: '600' as const };
 
   // Pie/Donut: show label + value
   if (firstType === 'pie') {
@@ -58,6 +71,7 @@ function applyLabelRules(raw: Highcharts.Options): Highcharts.Options {
           ...(piePlot.dataLabels ?? {}),
           enabled: true,
           format: '<b>{point.name}</b><br/>{point.y}',
+          style: labelStyle,
         },
       },
     };
@@ -71,17 +85,31 @@ function applyLabelRules(raw: Highcharts.Options): Highcharts.Options {
   if ((firstType === 'bar' || firstType === 'column') && catCount > 0 && catCount <= 10) {
     const plotOptions = (opts.plotOptions ?? {}) as Highcharts.PlotOptions;
     const target = firstType === 'bar' ? (plotOptions.bar ?? {}) : (plotOptions.column ?? {});
+    const shouldUseDistinctColors = catCount < 6;
     opts.plotOptions = {
       ...plotOptions,
       [firstType]: {
         ...target,
+        colorByPoint: shouldUseDistinctColors,
         dataLabels: {
           ...(((target as unknown as { dataLabels?: Record<string, unknown> }).dataLabels) ?? {}),
           enabled: true,
           format: '{point.y}',
+          style: labelStyle,
         },
       },
     };
+    // Force distinct point colors on short bar/column charts even when
+    // individual series options are present.
+    if (shouldUseDistinctColors) {
+      opts.series = series.map((s) => {
+        const so = (s as unknown as Record<string, unknown>);
+        return {
+          ...so,
+          colorByPoint: true,
+        };
+      }) as Highcharts.SeriesOptionsType[];
+    }
   }
 
   // Line family: if <=10 points, show node values
@@ -100,10 +128,110 @@ function applyLabelRules(raw: Highcharts.Options): Highcharts.Options {
           ...((target.dataLabels as Record<string, unknown> | undefined) ?? {}),
           enabled: true,
           format: '{point.y}',
+          style: labelStyle,
         },
       },
     };
   }
+
+  // Bubble: show data labels for top 3 by z/value
+  if (firstType === 'bubble') {
+    const bubbleSeries = series as Array<{ type?: string; data?: Array<Record<string, unknown>> }>;
+    const enhanced = bubbleSeries.map((s) => {
+      const data = Array.isArray(s.data) ? [...s.data] : [];
+      const ranked = data
+        .map((p, i) => {
+          const z = Number((p.z as number | undefined) ?? (p.value as number | undefined) ?? (p.y as number | undefined) ?? 0);
+          return { i, z };
+        })
+        .sort((a, b) => b.z - a.z)
+        .slice(0, 3);
+      const topIdx = new Set(ranked.map((r) => r.i));
+      const withLabels = data.map((p, i) => {
+        const label = String((p.name as string | undefined) ?? '');
+        const z = Number((p.z as number | undefined) ?? (p.value as number | undefined) ?? (p.y as number | undefined) ?? 0);
+        return {
+          ...p,
+          dataLabels: topIdx.has(i)
+            ? {
+                enabled: true,
+                format: label ? `<b>${label}</b><br/>${z}` : `${z}`,
+                style: labelStyle,
+              }
+            : { enabled: false },
+        };
+      });
+      return { ...s, data: withLabels };
+    });
+    opts.series = enhanced as unknown as Highcharts.SeriesOptionsType[];
+    return opts;
+  }
+
+  // Treemap: show data labels for top 3 by value
+  if (firstType === 'treemap') {
+    const tmSeries = series as Array<{ type?: string; data?: Array<Record<string, unknown>> }>;
+    const pointPalette = ['#C55A10', '#0E7470', '#7B3F28', '#1A6E6A', '#D4774A', '#3A9E9A', '#9B6A3A', '#5A8A6A'];
+    const enhanced = tmSeries.map((s) => {
+      const data = Array.isArray(s.data) ? [...s.data] : [];
+      const ranked = data
+        .map((p, i) => ({ i, v: Number((p.value as number | undefined) ?? 0) }))
+        .sort((a, b) => b.v - a.v)
+        .slice(0, 3);
+      const topIdx = new Set(ranked.map((r) => r.i));
+      const withLabels = data.map((p, i) => ({
+        ...p,
+        color: pointPalette[i % pointPalette.length],
+        dataLabels: topIdx.has(i)
+          ? {
+              enabled: true,
+              format: `<b>{point.name}</b><br/>{point.value}`,
+              style: labelStyle,
+            }
+          : { enabled: false },
+      }));
+      return { ...s, colorByPoint: true, data: withLabels };
+    });
+    opts.series = enhanced as unknown as Highcharts.SeriesOptionsType[];
+    return opts;
+  }
+
+  return opts;
+}
+
+function applyForcedDistinctPointColors(
+  raw: Highcharts.Options,
+  ids: Set<string>,
+  chartId: string,
+): Highcharts.Options {
+  if (!ids.has(chartId)) return raw;
+  const opts = { ...raw };
+  const series = (opts.series ?? []) as Highcharts.SeriesOptionsType[];
+  const firstType = String((series[0] as { type?: string } | undefined)?.type ?? '');
+  if (firstType !== 'bar' && firstType !== 'column') return opts;
+
+  const pointPalette = ['#C55A10', '#0E7470', '#7B3F28', '#1A6E6A', '#D4774A', '#3A9E9A', '#9B6A3A', '#5A8A6A'];
+  opts.series = series.map((s) => {
+    const so = s as unknown as Record<string, unknown>;
+    const data = (so.data as unknown[] | undefined) ?? [];
+    const recolored = data.map((p, i) => {
+      const color = pointPalette[i % pointPalette.length];
+      if (typeof p === 'number') return { y: p, color };
+      if (Array.isArray(p)) {
+        const name = String(p[0] ?? '');
+        const y = Number(p[1] ?? 0);
+        return { name, y, color };
+      }
+      if (p && typeof p === 'object') {
+        return { ...(p as Record<string, unknown>), color };
+      }
+      return p;
+    });
+    return {
+      ...so,
+      colorByPoint: true,
+      data: recolored,
+    };
+  }) as Highcharts.SeriesOptionsType[];
 
   return opts;
 }
@@ -191,9 +319,10 @@ interface HcChartProps {
   overrideOptions?: Highcharts.Options;
   fullPeriod?:     boolean;
   index?:          number;
+  codeLabel?:      string;
 }
 
-export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcChartProps) {
+export function HcChart({ def, dark, overrideOptions, fullPeriod, index, codeLabel }: HcChartProps) {
   const { t } = useI18n();
   const chartRef = useRef<HighchartsReact.RefObject>(null);
   const theme    = useMemo(() => makeTheme(dark), [dark]);
@@ -204,7 +333,9 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
       theme as unknown as Record<string, unknown>,
       base  as unknown as Record<string, unknown>,
     ) as unknown as Highcharts.Options;
-    return applyLabelRules(merged);
+    const withLabelRules = applyLabelRules(merged);
+    const forceDistinctIds = new Set(['him06', 'him22', 'him26', 'him28', 'him29', 'him33', 'him37']);
+    return applyForcedDistinctPointColors(withLabelRules, forceDistinctIds, def.id);
   }, [theme, def.options, overrideOptions]);
 
   const constructorType = useMemo(() => {
@@ -247,7 +378,7 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
           className="font-serif font-semibold leading-snug flex items-center gap-2"
           style={{ fontSize: '0.9rem', color: titleCol }}
         >
-          {index !== undefined && (
+          {(index !== undefined || codeLabel) && (
             <span
               className="font-mono shrink-0"
               style={{
@@ -261,7 +392,7 @@ export function HcChart({ def, dark, overrideOptions, fullPeriod, index }: HcCha
                 lineHeight:    1.4,
               }}
             >
-              {String(index).padStart(2, '0')}
+              {codeLabel ?? String(index).padStart(2, '0')}
             </span>
           )}
           {def.title}

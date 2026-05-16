@@ -68,6 +68,7 @@ export interface ChainEntry {
   hotel_name:   string;
   country_code: string;
   summary:      HotelSummary;
+  raw_daily?:   DailyBucket[];
 }
 
 // Full IM dashboard JSON stored in im_dashboard_json.generated_json
